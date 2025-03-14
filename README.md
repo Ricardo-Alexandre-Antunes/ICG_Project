@@ -54,5 +54,3 @@ During this time I will work mostly on the night vision - at Step 2 I will forec
 
 I haven't planned this far ahead yet but will update this README.md when I have an idea of what I need to do.
 
-*
-

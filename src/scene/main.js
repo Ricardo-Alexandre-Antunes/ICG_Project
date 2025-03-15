@@ -11,6 +11,19 @@ const sceneElements = {
     renderer: null,
 };
 
+const skierData = {
+    speed: 0,
+    rotation: 0,
+};
+
+const cameras = [];
+
+const skier = createSkier();
+
+let i = 0;
+
+let last_camera_change = 0;
+
 // HELPER FUNCTIONS
 
 const helper = {
@@ -31,6 +44,8 @@ const helper = {
         sceneElements.camera = camera;
         camera.position.set(0, 5, 5);
         camera.lookAt(0, 0, 0);
+
+        cameras.push(camera);
 
 
         //**************************//
@@ -154,8 +169,9 @@ function createTree() {
 
 function createSkier() {
     const skier = new Character_Ski();
-    return skier.mesh;
+    return skier;
 }
+
 
 const scene = {
 
@@ -166,7 +182,7 @@ const scene = {
         // ************************** //
         // Create a ground plane
         // ************************** //
-        const planeGeometry = new THREE.PlaneGeometry(6, 6);
+        const planeGeometry = new THREE.PlaneGeometry(20, 20);
         const planeMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(200, 200, 200)', side: THREE.DoubleSide });
         const planeObject = new THREE.Mesh(planeGeometry, planeMaterial);
         sceneGraph.add(planeObject);
@@ -176,20 +192,28 @@ const scene = {
         // Set shadow property
         planeObject.receiveShadow = true;
 
+
+        // ************************** //
+        // Create AxesHelper
+        // ************************** //
+        const axes = new THREE.AxesHelper(1000);
+        sceneGraph.add(axes);
+
         // ************************** //
         // Create a skier
         // ************************** //
-        const skier = createSkier();
-        skier.position.set(3, 1.05, 3);
-        skier.scale.set(0.1, 0.1, 0.1);
-        sceneGraph.add(skier);
+        skier.mesh.position.set(3, .105, 3);
+        skier.mesh.scale.set(0.01, 0.01, 0.01);
+        sceneGraph.add(skier.mesh);
 
         //Set shadow property
-        skier.castShadow = true;
-        skier.receiveShadow = true;
+        skier.mesh.castShadow = true;
+        skier.mesh.receiveShadow = true;
 
         //Name
-        skier.name = "skier";
+        skier.mesh.name = "skier";
+
+        cameras.push(skier.camera);
 
 
         // ************************** //
@@ -265,7 +289,8 @@ var delta = 0.1;
 var dispX = 0.2, dispZ = 0.2;
 
 //To keep track of the keyboard - WASD
-var keyD = false, keyA = false, keyS = false, keyW = false;
+var keyD = false, keyA = false, keyS = false, keyW = false, keyC = false;
+var arrowUp = false, arrowDown = false, arrowLeft = false, arrowRight = false;
 
 function computeFrame(time) {
 
@@ -280,6 +305,7 @@ function computeFrame(time) {
         delta *= -1;
     }
     light.translateX(delta);
+    light.intensity = 20;
 
     // CONTROLING THE CUBE WITH THE KEYBOARD
 
@@ -297,6 +323,49 @@ function computeFrame(time) {
     if (keyS && cube.position.z < 2.5) {
         cube.translateZ(dispZ);
     }
+
+    if (keyC) {
+        if (Date.now() - last_camera_change > 50) {
+            console.log("cur camera:", i);
+            console.log("number of cameras:", cameras.length);
+            sceneElements.camera = cameras[(++i) % cameras.length];
+        }
+        last_camera_change = Date.now();
+    }
+
+    // CONTROLING THE SKIER WITH THE KEYBOARD
+
+    if (arrowUp) {
+        if (skierData.speed < 1 && skier.mesh.position.x < 10 && skier.mesh.position.x > -10 && skier.mesh.position.z < 10 && skier.mesh.position.z > -10) {
+            skierData.speed += 0.001;
+            skier.camera.zoom += 0.1;
+        }
+        //skier.accelerate();
+    }
+
+    if (arrowDown) {
+        if (skierData.speed > 0 && skier.mesh.position.x < 10 && skier.mesh.position.x > -10 && skier.mesh.position.z < 10 && skier.mesh.position.z > -10) {
+            skierData.speed -= 0.001;
+            skier.camera.zoom -= 0.1;
+        }
+        //skier.normalStance();
+    }
+
+    if (arrowLeft) {
+        skier.mesh.rotation.y += 0.03;
+        skier.mesh.rotation.y = skier.mesh.rotation.y % (2 * Math.PI);
+        //skier.turnLeft();
+    }
+
+    if (arrowRight) {
+        skier.mesh.rotation.y -= 0.03;
+        skier.mesh.rotation.y = skier.mesh.rotation.y % (2 * Math.PI);
+        //skier.turnRight();
+    }
+
+    // move skier forward (not necessarily along an axis)
+    skier.mesh.translateZ(skierData.speed);
+    //skier.mesh.translateX(skierData.speed);
 
     // Rendering
     helper.render(sceneElements);
@@ -354,6 +423,22 @@ function onDocumentKeyDown(event) {
         case 87: //w
             keyW = true;
             break;
+        case 37: //left arrow
+            arrowLeft = true;
+            break;
+        case 38: //up arrow
+            arrowUp = true;
+            break;
+        case 39: //right arrow
+            arrowRight = true;
+            break;
+        case 40: //down arrow
+            arrowDown = true;
+            break;
+        case 67: //c
+            keyC = true
+            break;
+        
     }
 }
 
@@ -370,6 +455,21 @@ function onDocumentKeyUp(event) {
             break;
         case 87: //w
             keyW = false;
+            break;
+        case 37: //left arrow
+            arrowLeft = false;
+            break;
+        case 38: //up arrow 
+            arrowUp = false;
+            break;
+        case 39: //right arrow
+            arrowRight = false;
+            break;
+        case 40: //down arrow  
+            arrowDown = false;
+            break;
+        case 67: //c
+            keyC = false;
             break;
     }
 }

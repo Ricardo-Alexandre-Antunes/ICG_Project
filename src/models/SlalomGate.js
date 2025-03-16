@@ -32,9 +32,14 @@ export default class SlalomGate {
         pointLight.intensity = 0.5;
         pointLight.decay = 1;
         pointLight.position.set(0, 0, 0);
+
         leftPoleSphere.add(pointLight);
 
+        
+
         leftPole.add(leftPoleStick, leftPoleSphere);
+
+
 
         const rightPole = leftPole.clone();
         rightPole.position.set(0.6, 1, 0);

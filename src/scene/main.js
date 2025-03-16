@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import Character_Ski from "../models/Character.js";
+import Rock from "../models/Rock.js";
+import SlalomGate from "../models/SlalomGate.js";
 
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
@@ -15,6 +17,8 @@ const skierData = {
     speed: 0,
     rotation: 0,
 };
+
+const lights = [];
 
 const cameras = [];
 
@@ -75,6 +79,7 @@ const helper = {
         spotLight1.decay = 1;
         spotLight1.position.set(-5, 8, 0);
         sceneElements.sceneGraph.add(spotLight1);
+        lights.push(spotLight1);
 
         // Setup shadow properties for the spotlight
         spotLight1.castShadow = true;
@@ -92,6 +97,7 @@ const helper = {
         spotLight2.decay = 1;
         spotLight2.position.set(10, 5, 0);
         sceneElements.sceneGraph.add(spotLight2);
+        lights.push(spotLight2);
 
         // Setup shadow properties for the spotlight
         spotLight2.castShadow = true;
@@ -113,6 +119,8 @@ const helper = {
         // Setup shadowMap property
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.autoUpdate = true;
+
 
         // **************************************** //
         // Add the rendered image in the HTML DOM
@@ -214,6 +222,37 @@ const scene = {
         skier.mesh.name = "skier";
 
         cameras.push(skier.camera);
+        sceneGraph.add(skier.helper);
+
+        // ************************** //
+        // Create a rock
+        // ************************** //
+
+        const rock = new Rock();
+        rock.mesh.position.set(-2, 0, 2);
+        rock.mesh.scale.set(0.25, 0.25, 0.25);
+        sceneGraph.add(rock.mesh);
+
+        const rock2 = new Rock();
+        rock2.mesh.position.set(-3, 0, 2);
+        rock2.mesh.scale.set(0.25, 0.25, 0.25);
+        sceneGraph.add(rock2.mesh);
+
+        // ************************** //
+        // Add 2 slalom gates red / blue
+        // ************************** //
+
+        const textureLoader = new THREE.TextureLoader();
+        const slalomGate1 = new SlalomGate(textureLoader, null, 0xff0000);
+        slalomGate1.group.position.set(0, 0, 8);
+        slalomGate1.group.scale.set(0.15, 0.10, 0.15)
+        sceneGraph.add(slalomGate1.group);
+
+        const slalomGate2 = new SlalomGate(textureLoader, null, 0x0000ff);
+        slalomGate2.group.position.set(1, 0, 8);
+        slalomGate2.group.scale.set(0.15, 0.10, 0.15)
+        sceneGraph.add(slalomGate2.group);
+
 
 
         // ************************** //
@@ -292,7 +331,14 @@ var dispX = 0.2, dispZ = 0.2;
 var keyD = false, keyA = false, keyS = false, keyW = false, keyC = false;
 var arrowUp = false, arrowDown = false, arrowLeft = false, arrowRight = false;
 
+
 function computeFrame(time) {
+    if (keyC) {
+        if (Date.now() - last_camera_change > 50) {
+            sceneElements.camera = cameras[(++i) % cameras.length];
+        }
+        last_camera_change = Date.now();
+    }
 
     // Can extract an object from the scene Graph from its name
     const light = sceneElements.sceneGraph.getObjectByName("light 1");
@@ -324,14 +370,7 @@ function computeFrame(time) {
         cube.translateZ(dispZ);
     }
 
-    if (keyC) {
-        if (Date.now() - last_camera_change > 50) {
-            console.log("cur camera:", i);
-            console.log("number of cameras:", cameras.length);
-            sceneElements.camera = cameras[(++i) % cameras.length];
-        }
-        last_camera_change = Date.now();
-    }
+
 
     // CONTROLING THE SKIER WITH THE KEYBOARD
 
@@ -400,13 +439,15 @@ function resizeWindow(eventParam) {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    sceneElements.camera.aspect = width / height;
-    sceneElements.camera.updateProjectionMatrix();
+    for (let i = 0; i < cameras.length; i++) {
+        cameras[i].aspect = width / height;
+        cameras[i].updateProjectionMatrix();
+    }
 
     sceneElements.renderer.setSize(width, height);
 
     // Comment when doing animation
-    // computeFrame(sceneElements);
+    //computeFrame(sceneElements);
 }
 
 function onDocumentKeyDown(event) {

@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 export default class Character_Ski {
     constructor() {
-        this.mesh = new THREE.Group();
+        this.mesh = new THREE.Mesh();
 
         //AxesHelper
         this.mesh.add(new THREE.AxesHelper(10));
@@ -119,6 +119,10 @@ export default class Character_Ski {
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -10);
         light.position.set(0, 3, 0);
+
+        light.castShadow = true;
+        light.shadow.mapSize.width = 1024;
+        light.shadow.mapSize.height = 1024;
         headbandLight.add(light);
         headbandLight.add(light.target);
 
@@ -187,5 +191,9 @@ export default class Character_Ski {
         // Skis rotate right
         this.mesh.children[8].rotation.z = -0.3;
         this.mesh.children[9].rotation.z = -0.3;
+    }
+
+    updateCamera() {
+
     }
 }

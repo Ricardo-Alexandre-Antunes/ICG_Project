@@ -2,6 +2,9 @@ import * as THREE from "three";
 import Character_Ski from "../models/Character.js";
 import Rock from "../models/Rock.js";
 import SlalomGate from "../models/SlalomGate.js";
+import ThirdPersonCamera from "../cameras/ThirdPersonCamera.js";
+import Pole from "../models/Pole.js";
+import SpotlightModel from "../models/Spotlight.js";
 
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
@@ -23,6 +26,14 @@ const lights = [];
 const cameras = [];
 
 const skier = createSkier();
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(0, 5, 5);
+const thirdPersonCamera = new ThirdPersonCamera({
+    camera: camera,
+    target: skier.mesh,
+});
+cameras.push(thirdPersonCamera._camera);
 
 let i = 0;
 
@@ -75,37 +86,37 @@ const helper = {
         // ***************************** //
         // Add spotlight (with shadows)
         // ***************************** //
-        const spotLight1 = new THREE.SpotLight('rgb(255, 255, 255)', 40);
-        spotLight1.decay = 1;
-        spotLight1.position.set(-5, 8, 0);
-        sceneElements.sceneGraph.add(spotLight1);
-        lights.push(spotLight1);
-
-        // Setup shadow properties for the spotlight
-        spotLight1.castShadow = true;
-        spotLight1.shadow.mapSize.width = 2048;
-        spotLight1.shadow.mapSize.height = 2048;
-        
-
-        // Give a name to the spot light
-        spotLight1.name = "light 1";
+        //const spotLight1 = new THREE.SpotLight('rgb(255, 255, 255)', 40);
+        //spotLight1.decay = 1;
+        //spotLight1.position.set(-5, 8, 0);
+        //sceneElements.sceneGraph.add(spotLight1);
+        //lights.push(spotLight1);
+//
+        //// Setup shadow properties for the spotlight
+        //spotLight1.castShadow = true;
+        //spotLight1.shadow.mapSize.width = 2048;
+        //spotLight1.shadow.mapSize.height = 2048;
+        //
+//
+        //// Give a name to the spot light
+        //spotLight1.name = "light 1";
 
         // ***************************** //
         // Add 2nd spotlight (with shadows)
         // ***************************** //
-        const spotLight2 = new THREE.SpotLight('rgb(255, 255, 255)', 10);
-        spotLight2.decay = 1;
-        spotLight2.position.set(10, 5, 0);
-        sceneElements.sceneGraph.add(spotLight2);
-        lights.push(spotLight2);
-
-        // Setup shadow properties for the spotlight
-        spotLight2.castShadow = true;
-        spotLight2.shadow.mapSize.width = 2048;
-        spotLight2.shadow.mapSize.height = 2048;
-
-        // Give a name to the spot light
-        spotLight2.name = "light 2";
+        //const spotLight2 = new THREE.SpotLight('rgb(255, 255, 255)', 10);
+        //spotLight2.decay = 1;
+        //spotLight2.position.set(10, 5, 0);
+        //sceneElements.sceneGraph.add(spotLight2);
+        //lights.push(spotLight2);
+//
+        //// Setup shadow properties for the spotlight
+        //spotLight2.castShadow = true;
+        //spotLight2.shadow.mapSize.width = 2048;
+        //spotLight2.shadow.mapSize.height = 2048;
+//
+        //// Give a name to the spot light
+        //spotLight2.name = "light 2";
 
         // *********************************** //
         // Create renderer (with shadow map)
@@ -178,6 +189,11 @@ function createTree() {
 function createSkier() {
     const skier = new Character_Ski();
     return skier;
+}
+
+function createPole() {
+    const pole = new Pole();
+    return pole.getMesh();
 }
 
 
@@ -253,6 +269,24 @@ const scene = {
         slalomGate2.group.scale.set(0.15, 0.10, 0.15)
         sceneGraph.add(slalomGate2.group);
 
+        // ************************** //
+        // Create a pole
+        // ************************** //
+
+        const pole = createPole();
+        pole.position.set(5, 0, 5);
+        pole.scale.set(0.5, 0.5, 0.5);
+        sceneGraph.add(pole);
+
+
+        // ************************** //
+        // Create a spotlight
+        // ************************** //
+
+        const spotlight = new SpotlightModel();
+        spotlight.getObject().position.set(-5, 0.3, -5);
+        spotlight.getObject().scale.set(0.05, 0.05, 0.05);
+        sceneGraph.add(spotlight.getObject());
 
 
         // ************************** //
@@ -333,25 +367,13 @@ var arrowUp = false, arrowDown = false, arrowLeft = false, arrowRight = false;
 
 
 function computeFrame(time) {
+    thirdPersonCamera.Update(time);
     if (keyC) {
         if (Date.now() - last_camera_change > 50) {
             sceneElements.camera = cameras[(++i) % cameras.length];
         }
         last_camera_change = Date.now();
     }
-
-    // Can extract an object from the scene Graph from its name
-    const light = sceneElements.sceneGraph.getObjectByName("light 1");
-
-    // Apply a small displacement
-
-    if (light.position.x >= 10) {
-        delta *= -1;
-    } else if (light.position.x <= -10) {
-        delta *= -1;
-    }
-    light.translateX(delta);
-    light.intensity = 20;
 
     // CONTROLING THE CUBE WITH THE KEYBOARD
 
@@ -378,6 +400,7 @@ function computeFrame(time) {
         if (skierData.speed < 1 && skier.mesh.position.x < 10 && skier.mesh.position.x > -10 && skier.mesh.position.z < 10 && skier.mesh.position.z > -10) {
             skierData.speed += 0.001;
             skier.camera.zoom += 0.1;
+            thirdPersonCamera._camera.fov += 0.1;
         }
         //skier.accelerate();
     }
@@ -386,6 +409,7 @@ function computeFrame(time) {
         if (skierData.speed > 0 && skier.mesh.position.x < 10 && skier.mesh.position.x > -10 && skier.mesh.position.z < 10 && skier.mesh.position.z > -10) {
             skierData.speed -= 0.001;
             skier.camera.zoom -= 0.1;
+            thirdPersonCamera._camera.fov -= 0.1;
         }
         //skier.normalStance();
     }

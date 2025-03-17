@@ -28,10 +28,24 @@ export default class Mountain {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(10, 5);
-        const material = new THREE.MeshStandardMaterial({ color: this.color, flatShading: true, map: texture });
+        const material = new THREE.MeshStandardMaterial({ color: this.color, flatShading: true, map: texture, side: THREE.DoubleSide });
         const mountain = new THREE.Mesh(geometry, material);
         mountain.rotation.x = -Math.PI / 2 * this.steepness; // Orient the plane to be horizontal
 
         return mountain;
+    }
+
+    normalOfPoint(x, y) {
+        const geometry = this.mesh.geometry;
+        const vertices = geometry.attributes.position.array;
+        const i = (x + this.size / 2) / this.size * this.resolution;
+        const j = (y + this.size / 2) / this.size * this.resolution;
+        const index = Math.floor(j) * (this.resolution + 1) + Math.floor(i);
+        const normal = new THREE.Vector3(
+            geometry.attributes.normal.array[index * 3],
+            geometry.attributes.normal.array[index * 3 + 1],
+            geometry.attributes.normal.array[index * 3 + 2]
+        );
+        return normal;
     }
 }

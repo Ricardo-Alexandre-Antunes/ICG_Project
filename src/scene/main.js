@@ -17,22 +17,19 @@ const sceneElements = {
     renderer: null,
 };
 
+sceneElements.sceneGraph = new THREE.Scene();
+
 const skierData = {
     speed: 0,
     rotation: 0,
 };
 
+const relevantPlanes = [];
+
 const lights = [];
 
 const cameras = [];
 
-sceneElements.sceneGraph = new THREE.Scene();
-
-
-const mountain = new Mountain();
-mountain.mesh.position.set(10, -10, 0);
-mountain.mesh.scale.set(0.5, 0.5, 0.5);
-sceneElements.sceneGraph.add(mountain.mesh);
 const skier = createSkier();
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
@@ -42,6 +39,12 @@ const thirdPersonCamera = new ThirdPersonCamera({
     target: skier.mesh,
 });
 cameras.push(thirdPersonCamera._camera);
+
+
+const mountain = new Mountain();
+relevantPlanes.push(mountain.mesh);
+sceneElements.sceneGraph.add(mountain.mesh);
+
 
 let i = 0;
 
@@ -91,22 +94,12 @@ const helper = {
         const ambientLight = new THREE.AmbientLight('rgb(255, 255, 255)', 0.2);
         sceneElements.sceneGraph.add(ambientLight);
 
-
-        // ************************** //
-        // THE SUN
-        // ************************** //
-        const sun = new THREE.DirectionalLight('rgb(255, 255, 255)', 1);
-        sun.position.set(0, 100, 0);
-        sceneElements.sceneGraph.add(sun);
-        lights.push(sun);
-
-
         // ***************************** //
         // Add spotlight (with shadows)
         // ***************************** //
         //const spotLight1 = new THREE.SpotLight('rgb(255, 255, 255)', 40);
-        //spotLight1.decay = 0;
-        //spotLight1.position.set(-5, 50, 0);
+        //spotLight1.decay = 1;
+        //spotLight1.position.set(-5, 8, 0);
         //sceneElements.sceneGraph.add(spotLight1);
         //lights.push(spotLight1);
 //
@@ -114,8 +107,8 @@ const helper = {
         //spotLight1.castShadow = true;
         //spotLight1.shadow.mapSize.width = 2048;
         //spotLight1.shadow.mapSize.height = 2048;
-        
-
+        //
+//
         //// Give a name to the spot light
         //spotLight1.name = "light 1";
 
@@ -228,6 +221,7 @@ const scene = {
         const planeMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(200, 200, 200)', side: THREE.DoubleSide });
         const planeObject = new THREE.Mesh(planeGeometry, planeMaterial);
         sceneGraph.add(planeObject);
+        relevantPlanes.push(planeObject)
 
         // Change orientation of the plane using rotation
         planeObject.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
@@ -370,11 +364,6 @@ const scene = {
         // Set shadow property
         cylinderObject.castShadow = true;
         cylinderObject.receiveShadow = true;
-
-        // ************************** //
-        // Create a mountain
-        // ************************** //
-
     }
 };
 
@@ -387,75 +376,88 @@ var dispX = 0.2, dispZ = 0.2;
 //To keep track of the keyboard - WASD
 var keyD = false, keyA = false, keyS = false, keyW = false, keyC = false;
 var arrowUp = false, arrowDown = false, arrowLeft = false, arrowRight = false;
+var yspeed = 0;
 
-const skierSpeed = 0.1;
-const turnSpeed = 0.03;
-const maxSpeed = 1;
-const minSpeed = 0.01; // Prevent skier from stopping completely
-const gravityBoost = 0.02; // Extra speed when going downhill
+function resetSkier() {
+    skier.mesh.position.set(3, 0.145, 3);
+    skier.mesh.rotation.set(0, 0, 0);
+    skierData.speed = 0;
+    skier.camera.zoom = 1;
+    thirdPersonCamera._camera.fov = 45;
+}
 
-function updateSkierMovement(terrain) {
-    // RAYCAST DOWN TO FIND THE TERRAIN SURFACE
+function skierMovement(time) {
+    // CONTROLING THE SKIER WITH THE KEYBOARD
+
+    //raycasting downwards
     const raycaster = new THREE.Raycaster();
-    const downDirection = new THREE.Vector3(0, -1, 0);
-    raycaster.set(skier.mesh.position, downDirection);
+    raycaster.set(skier.mesh.position, new THREE.Vector3(0, -1, 0));
+    // check for planes
+    const intersects = raycaster.intersectObjects(relevantPlanes, true);
+    console.log(intersects);
 
-    const intersects = raycaster.intersectObject(terrain);
     if (intersects.length > 0) {
-        const terrainPoint = intersects[0].point; // Terrain collision point
-        const terrainNormal = intersects[0].face.normal; // Surface normal
-
-        // Snap skier to the ground
-        skier.mesh.position.y = terrainPoint.y + 0.1;
-
-        // Get skier's forward direction and project it onto the slope
-        let forward = new THREE.Vector3(0, 0, 1);
-        forward.applyQuaternion(skier.mesh.quaternion);
-        forward = forward.projectOnPlane(terrainNormal).normalize(); // Stay on the slope
-
-        // Set skier's look direction along the slope
-        let lookAtTarget = skier.mesh.position.clone().add(forward);
-        skier.mesh.lookAt(lookAtTarget);
-
-        // Apply gravity-like speed adjustment
-        const slopeFactor = terrainNormal.dot(new THREE.Vector3(0, 1, 0)); // 1 = flat, 0 = vertical
-        if (slopeFactor < 0.5) {
-            skierData.speed += gravityBoost * (0.5 - slopeFactor); // Gain speed downhill
-        } else {
-            skierData.speed -= gravityBoost * (slopeFactor - 0.5); // Lose speed uphill
+        let distance = intersects[0].distance;  
+        let normal = intersects[0].face.normal;
+        console.log(normal);
+        if (distance < 0.145) {
+            skier.mesh.position.y = intersects[0].point.y + 0.145;
+            yspeed = 0;
         }
-        skierData.speed = Math.max(minSpeed, Math.min(maxSpeed, skierData.speed));
+        else {
+            skier.mesh.position.y = Math.min(skier.mesh.position.y, intersects[0].point.y + 0.145);
+            
+        }
+
+    }
+    else {
+        yspeed -= 0.0001;
+    }
+    skier.mesh.position.y += yspeed;
+    if (skier.mesh.position.y < -35) {
+        resetSkier()
     }
 
-    // CONTROL THE SKIER WITH THE KEYBOARD
-    if (arrowUp) {
-        if (skierData.speed < 2) {
-            skierData.speed += 0.005; // Small boost
-        }
+    
 
+
+    
+
+
+
+    if (arrowUp) {
+        if (skierData.speed < 0.5) {
+            skierData.speed += 0.001;
+            skier.camera.zoom += 0.1;
+            thirdPersonCamera._camera.fov += 0.1;
+        }
+        //skier.accelerate();
     }
 
     if (arrowDown) {
         if (skierData.speed > 0) {
-            skierData.speed -= 0.005; // Small brake
+            skierData.speed -= 0.001;
+            skier.camera.zoom -= 0.1;
+            thirdPersonCamera._camera.fov -= 0.1;
         }
+        //skier.normalStance();
     }
 
     if (arrowLeft) {
-        skier.mesh.rotateY(turnSpeed); // Rotate left
+        skier.mesh.rotation.y += 0.03;
+        skier.mesh.rotation.y = skier.mesh.rotation.y % (2 * Math.PI);
+        //skier.turnLeft();
     }
 
     if (arrowRight) {
-        skier.mesh.rotateY(-turnSpeed); // Rotate right
+        skier.mesh.rotation.y -= 0.03;
+        skier.mesh.rotation.y = skier.mesh.rotation.y % (2 * Math.PI);
+        //skier.turnRight();
     }
 
-    // Move the skier along the slope
-    skier.mesh.translateOnAxis(new THREE.Vector3(0, 0, 1), skierData.speed);
+    // move skier forward (not necessarily along an axis)
+    skier.mesh.translateZ(skierData.speed);
 }
-
-
-
-
 
 function computeFrame(time) {
     thirdPersonCamera.Update(time);
@@ -485,11 +487,7 @@ function computeFrame(time) {
 
 
 
-    updateSkierMovement(mountain.mesh);
-
-    // move skier forward (not necessarily along an axis)
-    skier.mesh.translateZ(skierData.speed);
-    //skier.mesh.translateX(skierData.speed);
+    skierMovement(time);
 
     // Rendering
     helper.render(sceneElements);

@@ -23,13 +23,13 @@ The character's headlight will also be able to be moved with the mouse in the 1s
 **Step 1 - Model Creation**
 
 During this time I will create the models for:
-  - Character (skier)
+  - Character (skier) - DONE
   - Floor (snow mountain)
-  - Trees (on the side of the mountain, prevent player from moving too much horizontally)
-  - Gates (player needs to go past them)
-  - Rock (obstacle)
-  - Pole (obstacle)
-  - Spotlight (illumination)
+  - Trees (on the side of the mountain, prevent player from moving too much horizontally) - DONE
+  - Gates (player needs to go past them) - DONE
+  - Rock (obstacle) - DONE
+  - Pole (obstacle) - DONE
+  - Spotlight (illumination) - DONE
 
 **Step 2 - Model combination into scene**
 

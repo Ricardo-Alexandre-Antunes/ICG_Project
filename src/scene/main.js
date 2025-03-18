@@ -228,6 +228,8 @@ const scene = {
         // Set shadow property
         planeObject.receiveShadow = true;
 
+        planeObject.name = "floor"
+
 
         // ************************** //
         // Create AxesHelper
@@ -238,7 +240,7 @@ const scene = {
         // ************************** //
         // Create a skier
         // ************************** //
-        skier.mesh.position.set(3, .105, 3);
+        skier.mesh.position.set(3, 50, 3);
         skier.mesh.scale.set(0.01, 0.01, 0.01);
         sceneGraph.add(skier.mesh);
 
@@ -387,77 +389,94 @@ function resetSkier() {
 }
 
 function skierMovement(time) {
-    // CONTROLING THE SKIER WITH THE KEYBOARD
-
-    //raycasting downwards
+    // Raycasting downwards
     const raycaster = new THREE.Raycaster();
     raycaster.set(skier.mesh.position, new THREE.Vector3(0, -1, 0));
-    // check for planes
+
+    // Check for closest plane
     const intersects = raycaster.intersectObjects(relevantPlanes, true);
     console.log(intersects);
-
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(skier.mesh.quaternion).normalize();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(skier.mesh.quaternion).normalize();
+    let onGround = true;
     if (intersects.length > 0) {
-        let distance = intersects[0].distance;  
-        let normal = intersects[0].face.normal;
-        console.log(normal);
-        if (distance < 0.145) {
-            skier.mesh.position.y = intersects[0].point.y + 0.145;
-            yspeed = 0;
+        // Find the closest intersection
+        let closest = intersects.reduce((a, b) => (a.distance < b.distance ? a : b));
+        let normal = closest.face.normal.clone(); // Copy to avoid modifying the original
+
+        // Adjust skier position
+        if (closest.distance < 0.400) {
+            // Check if at end of ramp
+            const newRaycaster = new THREE.Raycaster();
+            const position = skier.mesh.position.clone();
+            position.setZ(position.z + 0.1);
+            newRaycaster.set(position, new THREE.Vector3(0, -1, 0));
+            const newIntersects = newRaycaster.intersectObjects(relevantPlanes, true);
+            const rayCasterUp = new THREE.Raycaster();
+            rayCasterUp.set(position, new THREE.Vector3(0, 1, 0));
+            const upIntersects = rayCasterUp.intersectObjects(relevantPlanes, true);
+
+            if (upIntersects.length === 0 && newIntersects.length !== 0 && newIntersects[0].distance < 0.400) {
+                onGround = true;
+                skier.mesh.position.y = closest.point.y + 0.145;
+            }
+
+
+
         }
         else {
-            skier.mesh.position.y = Math.min(skier.mesh.position.y, intersects[0].point.y + 0.145);
-            
+            // apply gravity
+            skier.mesh.position.add(new THREE.Vector3(0, -0.3, 0));
+            onGround = false;
         }
 
-    }
-    else {
-        yspeed -= 0.0001;
-    }
-    skier.mesh.position.y += yspeed;
-    if (skier.mesh.position.y < -35) {
-        resetSkier()
-    }
+        // Align skier with the closest plane
+        const objectUp = new THREE.Vector3(0, 1, 0).applyQuaternion(skier.mesh.quaternion);
+        const quaternion = new THREE.Quaternion().setFromUnitVectors(objectUp, normal);
+        skier.mesh.quaternion.slerp(quaternion, 0.2); // Smooth transition
 
-    
+        // Compute movement directions
+        let turnAngle = 0;
+        if (arrowLeft) turnAngle = 0.05;  // Rotate left
+        if (arrowRight) turnAngle = -0.05; // Rotate right
 
-
-    
-
-
-
-    if (arrowUp) {
-        if (skierData.speed < 0.5) {
-            skierData.speed += 0.001;
-            skier.camera.zoom += 0.1;
-            thirdPersonCamera._camera.fov += 0.1;
+        if (turnAngle !== 0) {
+            const turnQuaternion = new THREE.Quaternion();
+            turnQuaternion.setFromAxisAngle(normal, turnAngle); // Rotate around slope's normal
+            skier.mesh.quaternion.multiply(turnQuaternion); // Apply rotation
         }
-        //skier.accelerate();
-    }
-
-    if (arrowDown) {
-        if (skierData.speed > 0) {
-            skierData.speed -= 0.001;
-            skier.camera.zoom -= 0.1;
-            thirdPersonCamera._camera.fov -= 0.1;
+        
+        // Movement controls
+        if (arrowUp) {
+            if (skierData.speed < 0.5) {
+                skierData.speed += 0.001;
+                skier.camera.zoom += 0.1;
+                thirdPersonCamera._camera.fov += 0.1;
+            }
         }
-        //skier.normalStance();
+
+        if (arrowDown) {
+            if (skierData.speed > -0.5) {
+                skierData.speed -= 0.001;
+                skier.camera.zoom -= 0.1;
+                thirdPersonCamera._camera.fov -= 0.1;
+            }
+        }
+        
+    } else {
+        // Mantain speed but be affected by gravity
+        skier.mesh.position.add(new THREE.Vector3(0, yspeed, 0));
     }
 
-    if (arrowLeft) {
-        skier.mesh.rotation.y += 0.03;
-        skier.mesh.rotation.y = skier.mesh.rotation.y % (2 * Math.PI);
-        //skier.turnLeft();
-    }
+    // Apply gravity
+    skier.mesh.position.add(forward.multiplyScalar(skierData.speed));
 
-    if (arrowRight) {
-        skier.mesh.rotation.y -= 0.03;
-        skier.mesh.rotation.y = skier.mesh.rotation.y % (2 * Math.PI);
-        //skier.turnRight();
-    }
-
-    // move skier forward (not necessarily along an axis)
-    skier.mesh.translateZ(skierData.speed);
+    // Reset skier if they fall too low
+    //if (skier.mesh.position.y < -135) {
+    //    resetSkier();
+    //}
 }
+
 
 function computeFrame(time) {
     thirdPersonCamera.Update(time);
@@ -488,6 +507,24 @@ function computeFrame(time) {
 
 
     skierMovement(time);
+
+    //check list of planes, if skier is in last plane generate 3 more mountains in front of him
+    const skierPosition = skier.mesh.position;
+    const lastPlane = relevantPlanes[relevantPlanes.length - 1];
+    const lastPlanePosition = lastPlane.position;
+    // close to ending plane
+    if (skierPosition.z > lastPlanePosition.z + 270) {
+        const newMountain1 = new Mountain();
+        newMountain1.mesh.position.set(0, lastPlanePosition.y - 450, lastPlanePosition.z + 400);
+        relevantPlanes.push(newMountain1.mesh);
+        sceneElements.sceneGraph.add(newMountain1.mesh);
+
+        //remove first plane
+        const firstPlane = relevantPlanes.shift();
+        sceneElements.sceneGraph.remove(firstPlane);
+
+    }
+   
 
     // Rendering
     helper.render(sceneElements);

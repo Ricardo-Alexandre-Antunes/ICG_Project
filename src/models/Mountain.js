@@ -13,14 +13,14 @@ export default class Mountain {
     }
 
     createMountain() {
-        const geometry = new THREE.PlaneGeometry(this.size, this.size, this.resolution, this.resolution);
+        const geometry = new THREE.PlaneGeometry(this.size, this.size * this.heightScale, this.resolution, this.resolution);
         const noise = new ImprovedNoise();
         const vertices = geometry.attributes.position.array;
 
         for (let i = 0; i < vertices.length; i += 3) {
             const x = vertices[i] / this.size;
             const y = vertices[i + 1] / this.size;
-            vertices[i + 2] = noise.noise(x * this.seed * 3.2, y * this.seed * 3.2, 0) * this.heightScale; // Add randomness to terrain
+            vertices[i + 2] = noise.noise(x * this.seed * 3, y * this.seed * 3, 0) * this.heightScale; // Add randomness to terrain
         }
         geometry.computeVertexNormals();
 

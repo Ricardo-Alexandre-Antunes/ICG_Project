@@ -1,7 +1,224 @@
 import * as THREE from "three";
 
 export default class Character_Ski {
-    constructor() {
+    constructor(surface) {
+        const document = window.document;
+        //keys
+        this.keys = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false
+        };
+        this.surface = surface;
+        this._decceleration = new THREE.Vector3(-0.0005, -0.0001, -5.0);
+        this._acceleration = new THREE.Vector3(1, 2, 500.0);
+        this._velocity = new THREE.Vector3(0, 0, 0);
+        this.counter = 0;
+        this.createMesh();
+
+
+        document.addEventListener("keydown", (event) => {
+            this.onkeydown(event);
+        });
+
+        document.addEventListener("keyup", (event) => {
+            this.onkeyup(event);
+        });
+        
+    }
+
+    _updateSurface(surface) {
+        this.surface = surface;
+    }
+
+    onkeydown(event) {
+        switch (event.keyCode) {
+            // w key
+            case 87:
+                this.keys.forward = true;
+                break;
+            // a key
+            case 65:
+                this.keys.left = true;
+                break;
+            // d key
+            case 68:
+                this.keys.right = true;
+                break;
+            // s key
+            case 83:
+                this.keys.backward = true;
+                break;
+        }
+    }
+
+    onkeyup(event) {
+        switch (event.keyCode) {
+            // w key
+            case 87:
+                this.keys.forward = false;
+                break;
+            // a key
+            case 65:
+                this.keys.left = false;
+                break;
+            // d key
+            case 68:
+                this.keys.right = false;
+                break;
+            // s key
+            case 83:
+                this.keys.backward = false;
+                break;
+        }
+    }
+
+    Update(timeInSeconds) {
+        // Raycast downwards from the skier to detect the nearest surface
+        const downVector = new THREE.Vector3(0, -1, 0);
+        downVector.applyQuaternion(this.mesh.quaternion); // Adjust to skier's current rotation
+    
+        const raycaster = new THREE.Raycaster(this.mesh.position, downVector);
+        const intersects = raycaster.intersectObject(this.surface, true);
+    
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld); // Convert to world-space normal
+    
+            // Compute the new quaternion to align the skier with the surface normal
+            const upVector = new THREE.Vector3(0, 1, 0);
+            const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(upVector, worldNormal);
+    
+            // Blend smoothly to avoid jitter
+            this.mesh.quaternion.slerp(targetQuaternion, 0.2);
+    
+            // Adjust the Y-position to sit above the detected surface
+            this.mesh.position.y = hit.point.y + 1.150;
+        }
+        const velocity = this._velocity;
+        const frameDecceleration = new THREE.Vector3(
+            velocity.x * this._decceleration.x,
+            velocity.y * this._decceleration.y,
+            velocity.z * this._decceleration.z
+        );
+        if (isNaN(timeInSeconds)) {
+            return;
+        }
+        frameDecceleration.multiplyScalar(timeInSeconds);
+        frameDecceleration.z = Math.sign(frameDecceleration.z) * Math.min(
+            Math.abs(frameDecceleration.z), Math.abs(velocity.z));
+
+        velocity.add(frameDecceleration);
+    
+        const controlObject = this.mesh;
+        const _Q = new THREE.Quaternion();
+        const _A = new THREE.Vector3();
+        const _R = controlObject.quaternion.clone();
+    
+        if (this.keys.forward) {
+          velocity.z += this._acceleration.z * timeInSeconds;
+        }
+        if (this.keys.backward) {
+          velocity.z -= this._acceleration.z * timeInSeconds;
+        }
+        velocity.y += this._acceleration.y * timeInSeconds;
+        if (this.keys.left) {
+          _A.copy(intersects[0].face.normal);
+          _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * this._acceleration.y);
+          _R.multiply(_Q);
+        }
+        if (this.keys.right) {
+          _A.copy(intersects[0].face.normal);
+          _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * this._acceleration.y);
+          _R.multiply(_Q);
+        }
+    
+        controlObject.quaternion.copy(_R);
+    
+    
+        const oldPosition = new THREE.Vector3();
+        oldPosition.copy(controlObject.position);
+    
+        const forward = new THREE.Vector3(0, 0, 1);
+        forward.applyQuaternion(controlObject.quaternion);
+        forward.normalize();
+    
+        const sideways = new THREE.Vector3(1, 0, 0);
+        sideways.applyQuaternion(controlObject.quaternion);
+        sideways.normalize();
+    
+        sideways.multiplyScalar(velocity.x * timeInSeconds);
+        forward.multiplyScalar(velocity.z * timeInSeconds);
+
+    
+        controlObject.position.add(forward);
+        controlObject.position.add(sideways);
+    
+        oldPosition.copy(controlObject.position);   
+    }
+
+    
+
+
+
+    accelerate() {
+        // Body leans forward
+        this.mesh.rotation.x = -0.1;
+        
+        // Hands rotate backwards with ski poles
+        this.mesh.children[4].rotation.x = 0.3;
+        this.mesh.children[5].rotation.x = 0.3;
+
+        // Legs rotate backwards
+        this.mesh.children[6].rotation.x = 0.3;
+        this.mesh.children[7].rotation.x = 0.3;
+    }
+
+    normalStance() {
+        // Body upright
+        this.mesh.rotation.x = 0;
+        
+        // Hands rotate forwards
+        this.mesh.children[4].rotation.x = 0;
+        this.mesh.children[5].rotation.x = 0;
+
+        // Legs rotate forwards
+        this.mesh.children[6].rotation.x = 0;
+        this.mesh.children[7].rotation.x = 0;
+    }
+
+    turnLeft() {
+        // Body leans left
+        this.mesh.rotation.z = 0.1;
+
+        // Arms lean left
+        this.mesh.children[4].rotation.z = 0.3;
+        this.mesh.children[5].rotation.z = 0.3;
+
+        // Skis rotate left
+        this.mesh.children[8].rotation.z = 0.3;
+        this.mesh.children[9].rotation.z = 0.3;
+    }
+
+    turnRight() {
+        // Body leans right
+        this.mesh.rotation.z = -0.1;
+
+        // Arms lean right
+        this.mesh.children[4].rotation.z = -0.3;
+        this.mesh.children[5].rotation.z = -0.3;
+
+        // Skis rotate right
+        this.mesh.children[8].rotation.z = -0.3;
+        this.mesh.children[9].rotation.z = -0.3;
+    }
+
+    updateCamera() {
+
+    }
+
+    createMesh() {
         this.mesh = new THREE.Mesh();
 
         //AxesHelper
@@ -137,63 +354,6 @@ export default class Character_Ski {
 
 
         this.mesh.add(headbandLight);
-
-
-    }
-
-    accelerate() {
-        // Body leans forward
-        this.mesh.rotation.x = -0.1;
-        
-        // Hands rotate backwards with ski poles
-        this.mesh.children[4].rotation.x = 0.3;
-        this.mesh.children[5].rotation.x = 0.3;
-
-        // Legs rotate backwards
-        this.mesh.children[6].rotation.x = 0.3;
-        this.mesh.children[7].rotation.x = 0.3;
-    }
-
-    normalStance() {
-        // Body upright
-        this.mesh.rotation.x = 0;
-        
-        // Hands rotate forwards
-        this.mesh.children[4].rotation.x = 0;
-        this.mesh.children[5].rotation.x = 0;
-
-        // Legs rotate forwards
-        this.mesh.children[6].rotation.x = 0;
-        this.mesh.children[7].rotation.x = 0;
-    }
-
-    turnLeft() {
-        // Body leans left
-        this.mesh.rotation.z = 0.1;
-
-        // Arms lean left
-        this.mesh.children[4].rotation.z = 0.3;
-        this.mesh.children[5].rotation.z = 0.3;
-
-        // Skis rotate left
-        this.mesh.children[8].rotation.z = 0.3;
-        this.mesh.children[9].rotation.z = 0.3;
-    }
-
-    turnRight() {
-        // Body leans right
-        this.mesh.rotation.z = -0.1;
-
-        // Arms lean right
-        this.mesh.children[4].rotation.z = -0.3;
-        this.mesh.children[5].rotation.z = -0.3;
-
-        // Skis rotate right
-        this.mesh.children[8].rotation.z = -0.3;
-        this.mesh.children[9].rotation.z = -0.3;
-    }
-
-    updateCamera() {
 
     }
 }

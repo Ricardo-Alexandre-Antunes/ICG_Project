@@ -221,7 +221,6 @@ const scene = {
         const planeMaterial = new THREE.MeshPhongMaterial({ color: 'rgb(200, 200, 200)', side: THREE.DoubleSide });
         const planeObject = new THREE.Mesh(planeGeometry, planeMaterial);
         sceneGraph.add(planeObject);
-        relevantPlanes.push(planeObject)
 
         // Change orientation of the plane using rotation
         planeObject.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
@@ -405,7 +404,9 @@ function skierMovement(time) {
         let normal = closest.face.normal.clone(); // Copy to avoid modifying the original
 
         // Adjust skier position
-        if (closest.distance < 0.400) {
+        if (closest.distance < 0.5) {
+            // Move skier to the plane
+            skier.mesh.position.y = closest.point.y + 0.150;
             // Check if at end of ramp
             const newRaycaster = new THREE.Raycaster();
             const position = skier.mesh.position.clone();
@@ -416,10 +417,16 @@ function skierMovement(time) {
             rayCasterUp.set(position, new THREE.Vector3(0, 1, 0));
             const upIntersects = rayCasterUp.intersectObjects(relevantPlanes, true);
 
-            if (upIntersects.length === 0 && newIntersects.length !== 0 && newIntersects[0].distance < 0.400) {
+            if (upIntersects.length === 0 && newIntersects.length !== 0 && newIntersects[0].distance < 10) {
                 onGround = true;
-                skier.mesh.position.y = closest.point.y + 0.145;
+                // place skier above the plane using normal vector + 0.150
+                skier.mesh.position.x = closest.point.x + normal.x * 0.150;
+                skier.mesh.position.y = closest.point.y + normal.y * 0.150;
+                skier.mesh.position.z = closest.point.z + normal.z * 0.150;
+                
             }
+
+            
 
 
 
@@ -437,18 +444,16 @@ function skierMovement(time) {
 
         // Compute movement directions
         let turnAngle = 0;
-        if (arrowLeft) turnAngle = 0.05;  // Rotate left
-        if (arrowRight) turnAngle = -0.05; // Rotate right
+        if (arrowLeft) turnAngle = 0.25;  // Rotate left
+        if (arrowRight) turnAngle = -0.25; // Rotate right
 
         if (turnAngle !== 0) {
-            const turnQuaternion = new THREE.Quaternion();
-            turnQuaternion.setFromAxisAngle(normal, turnAngle); // Rotate around slope's normal
-            skier.mesh.quaternion.multiply(turnQuaternion); // Apply rotation
+            skier.mesh.rotateY(turnAngle);
         }
         
         // Movement controls
         if (arrowUp) {
-            if (skierData.speed < 0.5) {
+            if (skierData.speed < 0.4) {
                 skierData.speed += 0.001;
                 skier.camera.zoom += 0.1;
                 thirdPersonCamera._camera.fov += 0.1;
@@ -456,7 +461,7 @@ function skierMovement(time) {
         }
 
         if (arrowDown) {
-            if (skierData.speed > -0.5) {
+            if (skierData.speed > 0) {
                 skierData.speed -= 0.001;
                 skier.camera.zoom -= 0.1;
                 thirdPersonCamera._camera.fov -= 0.1;
@@ -508,20 +513,36 @@ function computeFrame(time) {
 
     skierMovement(time);
 
+
+    //check skier collision with rocks
+    const rocks = sceneElements.sceneGraph.children.filter(child => child.type === "Mesh" && child.name === "rock");
+    for (let rock of rocks) {
+        if (skier.mesh.position.distanceTo(rock.position) < 1) {
+            resetSkier();
+        }
+    }
+
     //check list of planes, if skier is in last plane generate 3 more mountains in front of him
     const skierPosition = skier.mesh.position;
     const lastPlane = relevantPlanes[relevantPlanes.length - 1];
     const lastPlanePosition = lastPlane.position;
     // close to ending plane
-    if (skierPosition.z > lastPlanePosition.z + 270) {
+    // plane height
+    console.log(Math.cos(lastPlane.rotation._x) * lastPlane.geometry.parameters.height);
+    console.log(lastPlane.geometry.parameters.height * Math.sin(lastPlane.rotation._x) / 2);
+    console.log(Number(skierPosition.z), Number(lastPlanePosition.z - Math.sin(lastPlane.rotation._x) * lastPlane.geometry.parameters.height / 2 - 100), Number(skierPosition.z) > Number(lastPlanePosition.z - Math.sin(lastPlane.rotation._x) * lastPlane.size / 2 - 100));
+    if (Number(skierPosition.z) > Number(lastPlanePosition.z - Math.sin(lastPlane.rotation._x) * lastPlane.geometry.parameters.height / 2 - 4)) {
         const newMountain1 = new Mountain();
-        newMountain1.mesh.position.set(0, lastPlanePosition.y - 450, lastPlanePosition.z + 400);
+        newMountain1.mesh.position.set(0, lastPlanePosition.y - Math.cos(lastPlane.rotation._x) * lastPlane.geometry.parameters.height / 2 - 2, lastPlanePosition.z -lastPlane.geometry.parameters.height * Math.sin(lastPlane.rotation._x) / 2 );
         relevantPlanes.push(newMountain1.mesh);
         sceneElements.sceneGraph.add(newMountain1.mesh);
+        console.log("new mountain 1", newMountain1.mesh.position);
 
         //remove first plane
-        const firstPlane = relevantPlanes.shift();
-        sceneElements.sceneGraph.remove(firstPlane);
+        if (relevantPlanes.length > 2) {
+            const firstPlane = relevantPlanes.shift();
+            sceneElements.sceneGraph.remove(firstPlane);
+        }
 
     }
    

@@ -22,7 +22,7 @@ export default class ThirdPersonCamera {
     }
 
     _CalculateIdealLookat() {
-        const idealLookat = new THREE.Vector3(-0.05, 0, 2.5);
+        const idealLookat = new THREE.Vector3(-0.05, 2, 2.5);
         const quartenion = new THREE.Quaternion();
         quartenion.setFromEuler(this._params.target.rotation);
         idealLookat.applyQuaternion(quartenion);

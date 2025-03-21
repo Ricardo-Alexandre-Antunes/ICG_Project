@@ -11,8 +11,8 @@ export default class Character_Ski {
             right: false
         };
         this.surface = surface;
-        this._decceleration = new THREE.Vector3(-0.0005, -0.0001, -5.0);
-        this._acceleration = new THREE.Vector3(1, 2, 500.0);
+        this._decceleration = new THREE.Vector3(-0.5, -0.0001, -5.0);
+        this._acceleration = new THREE.Vector3(0.5, 2, 250.0);
         this._velocity = new THREE.Vector3(0, 0, 0);
         this.counter = 0;
         this.createMesh();
@@ -84,17 +84,14 @@ export default class Character_Ski {
     
         if (intersects.length > 0) {
             const hit = intersects[0];
-            const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld); // Convert to world-space normal
+            const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
     
-            // Compute the new quaternion to align the skier with the surface normal
             const upVector = new THREE.Vector3(0, 1, 0);
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(upVector, worldNormal);
     
-            // Blend smoothly to avoid jitter
             this.mesh.quaternion.slerp(targetQuaternion, 0.2);
     
-            // Adjust the Y-position to sit above the detected surface
-            this.mesh.position.y = hit.point.y + 1.150;
+            this.mesh.position.y = hit.point.y + 0.800;
         }
         const velocity = this._velocity;
         const frameDecceleration = new THREE.Vector3(
@@ -124,14 +121,16 @@ export default class Character_Ski {
         }
         velocity.y += this._acceleration.y * timeInSeconds;
         if (this.keys.left) {
-          _A.copy(intersects[0].face.normal);
+          _A.set(0, 1.2, 0);
           _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
+            velocity.x += this._acceleration.x * timeInSeconds * this._velocity.z;
         }
         if (this.keys.right) {
-          _A.copy(intersects[0].face.normal);
+          _A.set(0, 1.2, 0);
           _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
+            velocity.x -= this._acceleration.x * timeInSeconds * this._velocity.z;
         }
     
         controlObject.quaternion.copy(_R);
@@ -331,10 +330,10 @@ export default class Character_Ski {
 
 
 
-        var light = new THREE.SpotLight(0xffffff, 0.4);
+        var light = new THREE.SpotLight(0xffffff, 1);
         light.decay = 0.5;
         light.target = new THREE.Object3D();
-        light.target.position.set(0, 20, -10);
+        light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);
 
         light.castShadow = true;

@@ -1,3 +1,3 @@
-import GameWorld from '../scene/GameWorld.js';
+import GameWorld from './GameWorld.js';
 
 new GameWorld();

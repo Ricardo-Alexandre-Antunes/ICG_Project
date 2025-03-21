@@ -3,6 +3,7 @@ import Character_Ski from '../models/Character.js';
 import Mountain from '../models/Mountain.js';
 import ThirdPersonCamera from '../cameras/ThirdPersonCamera.js';
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import Sun from '../models/Sun.js';
 
 
 //"FREE - SkyBox Mountain View" (https://skfb.ly/oJrZI) by Paul is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
@@ -13,6 +14,7 @@ export default class GameWorld {
     constructor() {
         this.htmlElement = document.querySelector("#MainScene");
         this.previousRAF = null;
+        this.start = Date.now();
         this._Initialize();
     }
 
@@ -23,6 +25,7 @@ export default class GameWorld {
 
         //scene
         this.sceneGraph = new THREE.Scene();
+        this.floor = [];
 
         //camera
         this.allCameras = [];
@@ -47,9 +50,10 @@ export default class GameWorld {
         this.control = new OrbitControls(this.camera, this.renderer.domElement);
         this.control.screenSpacePanning = true;
 
-        //ambient light
-        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        this.sceneGraph.add(this.ambientLight);
+        //sun
+        const sun = new Sun();
+        this.sceneGraph.add(sun.mesh);
+        this.animatedObjects.push(sun);
 
         this._addObjects();
         this._RAF();
@@ -77,19 +81,20 @@ export default class GameWorld {
         //mountain
         const mountain = new Mountain(500);
         this.sceneGraph.add(mountain.mesh);
+        this.floor.push(mountain);
 
         //skier
-        const skier = new Character_Ski(mountain.mesh);
-        skier.mesh.scale.set(0.1, 0.1, 0.1);
-        this.sceneGraph.add(skier.mesh);
-        this.animatedObjects.push(skier);
+        this.skier = new Character_Ski(mountain.mesh);
+        this.skier.mesh.scale.set(0.1, 0.1, 0.1);
+        this.sceneGraph.add(this.skier.mesh);
+        this.animatedObjects.push(this.skier);
 
         //skier's camera
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
         const params = 
         {
             camera: camera,
-            target: skier.mesh
+            target: this.skier.mesh
         };
         const skierCamera = new ThirdPersonCamera(params);
         this.allCameras.push(skierCamera._camera);
@@ -116,7 +121,22 @@ export default class GameWorld {
         });
 
         //update camera
-        this.control.update();        
+        this.control.update();     
+        
+        //generate more floor if needed
+        this.floor.forEach((floor) => {
+            const angle = -Math.PI / 2 * floor.steepness
+            console.log(this.skier.mesh.position.z);
+            console.log(floor.mesh.position.z + (floor.size * Math.abs(Math.sin(angle)) / 2) - 30);
+            if (this.skier.mesh.position.z > floor.mesh.position.z + floor.size / 2 - 30) {
+                this.sceneGraph.remove(floor.mesh);
+                const newFloor = new Mountain(floor.size);
+                newFloor.mesh.position.z = floor.mesh.position.z - floor.size * Math.sin(angle);
+                newFloor.mesh.position.y = floor.mesh.position.y - floor.size * Math.cos(angle);
+                this.sceneGraph.add(newFloor.mesh);
+                this.floor.push(newFloor);
+            }
+        });
     }
 
 
@@ -125,12 +145,11 @@ export default class GameWorld {
             if (this._previousRAF === null) {
                 this._previousRAF = t;
               }
-        
-              this._RAF();
-        
+                
               this.renderer.render(this.sceneGraph, this.camera);
               this._Step(t - this._previousRAF);
               this._previousRAF = t;
+              this._RAF();
         });
     }
 }

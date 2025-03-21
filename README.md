@@ -19,12 +19,12 @@ There will be many fonts of illumination:
 
 The character's headlight will also be able to be moved with the mouse in the 1st person view.
 
-## Project Iterations - Currently on Step 1
+## Project Iterations - Currently on Step 2
 **Step 1 - Model Creation**
 
 During this time I will create the models for:
   - Character (skier) - DONE
-  - Floor (snow mountain)
+  - Floor (snow mountain) - DONE
   - Trees (on the side of the mountain, prevent player from moving too much horizontally) - DONE
   - Gates (player needs to go past them) - DONE
   - Rock (obstacle) - DONE

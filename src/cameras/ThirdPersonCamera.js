@@ -13,9 +13,9 @@ export default class ThirdPersonCamera {
     }
 
     _CalculateIdealOffset() {
-        const idealOffset = new THREE.Vector3(-0.05, 4, -5);
+        const idealOffset = new THREE.Vector3(-0.05, 6, -10);
         const quartenion = new THREE.Quaternion();
-        quartenion.setFromEuler(this._params.target.rotation);
+        quartenion.setFromEuler(new THREE.Euler(this._params.target.rotation.x, 0.3 * this._params.target.rotation.y, this._params.target.rotation.z, 'XYZ'));
         idealOffset.applyQuaternion(quartenion);
         idealOffset.add(this._params.target.position);
         return idealOffset;
@@ -24,7 +24,7 @@ export default class ThirdPersonCamera {
     _CalculateIdealLookat() {
         const idealLookat = new THREE.Vector3(-0.05, 2, 2.5);
         const quartenion = new THREE.Quaternion();
-        quartenion.setFromEuler(this._params.target.rotation);
+        quartenion.setFromEuler(new THREE.Euler(this._params.target.rotation.x, 0, 0, 'XYZ'));
         idealLookat.applyQuaternion(quartenion);
         idealLookat.add(this._params.target.position);
         return idealLookat;

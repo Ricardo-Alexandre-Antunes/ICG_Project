@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 export default class Character_Ski {
     constructor(surface) {
+        this.start = Date.now();
         const document = window.document;
         //keys
         this.keys = {
@@ -11,8 +12,8 @@ export default class Character_Ski {
             right: false
         };
         this.surface = surface;
-        this._decceleration = new THREE.Vector3(-0.5, -0.0001, -5.0);
-        this._acceleration = new THREE.Vector3(0.5, 2, 250.0);
+        this._decceleration = new THREE.Vector3(-2.105, 3, -0.6);
+        this._acceleration = new THREE.Vector3(1.5, 2, 50.0);
         this._velocity = new THREE.Vector3(0, 0, 0);
         this.counter = 0;
         this.createMesh();
@@ -115,23 +116,28 @@ export default class Character_Ski {
     
         if (this.keys.forward) {
           velocity.z += this._acceleration.z * timeInSeconds;
+          velocity.z = Math.min(velocity.z, 25 + 0.1 * (Date.now() - this.start) / 100);
+          console.log(velocity.z);
         }
         if (this.keys.backward) {
           velocity.z -= this._acceleration.z * timeInSeconds;
+            velocity.z = Math.max(velocity.z, 0);
         }
-        velocity.y += this._acceleration.y * timeInSeconds;
         if (this.keys.left) {
-          _A.set(0, 1.2, 0);
-          _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * this._acceleration.y);
+          _A.set(0, 1.4, 0);
+          _Q.setFromAxisAngle(_A, 1.1 * Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
             velocity.x += this._acceleration.x * timeInSeconds * this._velocity.z;
         }
         if (this.keys.right) {
-          _A.set(0, 1.2, 0);
-          _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * this._acceleration.y);
+          _A.set(0, 1.4, 0);
+          _Q.setFromAxisAngle(_A, 1.1 * -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
             velocity.x -= this._acceleration.x * timeInSeconds * this._velocity.z;
         }
+
+        //face the way skier is moving
+        
     
         controlObject.quaternion.copy(_R);
     
@@ -143,16 +149,13 @@ export default class Character_Ski {
         forward.applyQuaternion(controlObject.quaternion);
         forward.normalize();
     
-        const sideways = new THREE.Vector3(1, 0, 0);
-        sideways.applyQuaternion(controlObject.quaternion);
-        sideways.normalize();
-    
-        sideways.multiplyScalar(velocity.x * timeInSeconds);
+
         forward.multiplyScalar(velocity.z * timeInSeconds);
 
     
         controlObject.position.add(forward);
-        controlObject.position.add(sideways);
+
+        this.mesh.position.x = Math.min(Math.max(this.mesh.position.x, -this.surface.geometry.parameters.width / 2 + 25), this.surface.geometry.parameters.width / 2 - 25);
     
         oldPosition.copy(controlObject.position);   
     }

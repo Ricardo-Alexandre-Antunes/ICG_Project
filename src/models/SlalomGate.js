@@ -29,11 +29,12 @@ export default class SlalomGate {
 
         // Put point light on sphere
         const pointLight = new THREE.PointLight(color, 1, 2);
-        pointLight.intensity = 0.5;
-        pointLight.decay = 1;
-        pointLight.position.set(0, 0, 0);
+        pointLight.intensity = 30;
+        pointLight.decay = 5;
+        pointLight.position.set(0, 0.5, 0);
+        pointLight.castShadow = true;
 
-        leftPoleSphere.add(pointLight);
+        this.group.add(pointLight);
 
         
 

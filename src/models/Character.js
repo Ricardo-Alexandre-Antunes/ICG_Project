@@ -333,8 +333,8 @@ export default class Character_Ski {
 
 
 
-        var light = new THREE.SpotLight(0xffffff, 1);
-        light.decay = 0.5;
+        var light = new THREE.SpotLight(0xffffff, 3);
+        light.decay = 0.3;
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);

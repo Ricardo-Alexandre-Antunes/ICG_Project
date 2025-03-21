@@ -126,8 +126,6 @@ export default class GameWorld {
         //generate more floor if needed
         this.floor.forEach((floor) => {
             const angle = -Math.PI / 2 * floor.steepness
-            console.log(this.skier.mesh.position.z);
-            console.log(floor.mesh.position.z + (floor.size * Math.abs(Math.sin(angle)) / 2) - 30);
             if (this.skier.mesh.position.z > floor.mesh.position.z + floor.size / 2 - 30) {
                 this.sceneGraph.remove(floor.mesh);
                 const newFloor = new Mountain(floor.size);

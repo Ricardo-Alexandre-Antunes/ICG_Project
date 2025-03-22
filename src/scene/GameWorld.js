@@ -20,6 +20,8 @@ export default class GameWorld {
 
     _Initialize() {
 
+
+
         //animated objects
         this.animatedObjects = [];
 
@@ -54,6 +56,26 @@ export default class GameWorld {
         const sun = new Sun();
         this.sceneGraph.add(sun.mesh);
         this.animatedObjects.push(sun);
+
+
+        this.lastFrameTime = performance.now();
+        this.fps = 0;
+        this.frameCount = 0;
+
+        this.fpsDisplay = document.createElement("div");
+        this.fpsDisplay.style.position = "absolute";
+        this.fpsDisplay.style.top = "10px";
+        this.fpsDisplay.style.left = "10px";
+        this.fpsDisplay.style.color = "white";
+        this.fpsDisplay.style.background = "rgba(0,0,0,0.7)";
+        this.fpsDisplay.style.padding = "5px";
+        this.fpsDisplay.style.fontFamily = "Arial";
+        this.fpsDisplay.style.color = "lime";  // Change text color to green
+        this.fpsDisplay.style.fontSize = "14px"; // Make it readable
+        this.fpsDisplay.style.width = "80px"; // Give it some width
+
+        document.body.appendChild(this.fpsDisplay);
+
 
         this._addObjects();
         this._RAF();
@@ -119,6 +141,15 @@ export default class GameWorld {
     }
     
     render() {
+        const now = performance.now();
+        this.frameCount++;
+        if (now - this.lastFrameTime >= 1000) {
+            this.fps = this.frameCount;
+            this.frameCount = 0;
+            this.lastFrameTime = now;
+            this.fpsDisplay.innerHTML = `FPS: ${this.fps}`;
+            console.log("fps", this.fps);
+        }
         this.renderer.render(this.sceneGraph, this.camera);
     }
 
@@ -159,7 +190,7 @@ export default class GameWorld {
                 this._previousRAF = t;
               }
                 
-              this.renderer.render(this.sceneGraph, this.camera);
+              this.render();
               this._Step(t - this._previousRAF);
               this._previousRAF = t;
               this._RAF();

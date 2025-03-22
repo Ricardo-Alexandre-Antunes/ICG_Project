@@ -5,7 +5,7 @@ import SlalomGate from './SlalomGate.js';
 import Tree from './Tree.js';
 
 export default class Mountain {
-    constructor(size = 250, resolution = 100, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random()) {
+    constructor(size = 250, resolution = 130, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random()) {
         this.size = size;
         this.resolution = resolution;
         this.heightScale = heightScale;
@@ -34,7 +34,7 @@ export default class Mountain {
                 const index = (j * (this.resolution + 1) + i) * 3;
                 const x = (i / this.resolution - 0.5) * this.size;
                 const y = (j / this.resolution - 0.5) * this.size;
-                const height = noise.noise(x * this.seed * Math.pow(2, 3), y * this.seed * Math.pow(2, 3), 0);
+                const height = noise.noise(x * this.seed * Math.pow(2, 5), y * this.seed * Math.pow(2, 5), 10);
 
                 vertices[index + 2] = height; // Modify the height in geometry
                 this.heightMap[j][i] = height; // Save height in heightMap
@@ -47,7 +47,7 @@ export default class Mountain {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(10, 5);
-        const material = new THREE.MeshStandardMaterial({ color: this.color, flatShading: true, map: texture, side: THREE.DoubleSide });
+        const material = new THREE.MeshStandardMaterial({ color: this.color, flatShading: false, map: texture, side: THREE.DoubleSide });
 
         const mountain = new THREE.Mesh(geometry, material);
         mountain.rotation.x = -Math.PI / 2 * this.steepness;

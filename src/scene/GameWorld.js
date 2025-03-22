@@ -39,7 +39,7 @@ export default class GameWorld {
         //renderer
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.renderer.setClearColor('rgb(255, 255, 150)', 1.0);
+        this.renderer.setClearColor(0x87CEEB, 1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -73,6 +73,7 @@ export default class GameWorld {
     }
 
     _switchCamera() {
+        console.log("Switching camera");
         this.curCamera = (this.curCamera + 1) % this.allCameras.length;
         this.camera = this.allCameras[this.curCamera];
     }
@@ -83,8 +84,16 @@ export default class GameWorld {
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
+        //2nd mountain
+        const mountain2 = new Mountain(500);
+        const angle = -Math.PI / 2 * mountain.steepness
+        mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle) - 2;
+        mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle) + 0.5;
+        this.sceneGraph.add(mountain2.mesh);
+        this.floor.push(mountain2);
+
         //skier
-        this.skier = new Character_Ski(mountain.mesh);
+        this.skier = new Character_Ski([mountain.mesh, mountain2.mesh]);
         this.skier.mesh.scale.set(0.1, 0.1, 0.1);
         this.sceneGraph.add(this.skier.mesh);
         this.animatedObjects.push(this.skier);
@@ -124,17 +133,23 @@ export default class GameWorld {
         this.control.update();     
         
         //generate more floor if needed
-        this.floor.forEach((floor) => {
-            const angle = -Math.PI / 2 * floor.steepness
-            if (this.skier.mesh.position.z > floor.mesh.position.z + floor.size / 2 - 30) {
-                this.sceneGraph.remove(floor.mesh);
-                const newFloor = new Mountain(floor.size);
-                newFloor.mesh.position.z = floor.mesh.position.z - floor.size * Math.sin(angle);
-                newFloor.mesh.position.y = floor.mesh.position.y - floor.size * Math.cos(angle);
+        var lastFloor = this.floor[this.floor.length - 1];
+        var detectPoint = this.floor[this.floor.length - 2];
+        const angle = -Math.PI / 2 * lastFloor.steepness
+        if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
+            for (let i = 0; i < 4; i++) {
+                const newFloor = new Mountain(lastFloor.size);
+                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 2;
+                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) + 0.5;
                 this.sceneGraph.add(newFloor.mesh);
+                this.skier._updateSurface(newFloor.mesh);
                 this.floor.push(newFloor);
+                lastFloor = this.floor[this.floor.length - 1];
             }
-        });
+            if (this.floor.length > 8) {
+                this.sceneGraph.remove(this.floor.shift().mesh);
+            }
+        }
     }
 
 

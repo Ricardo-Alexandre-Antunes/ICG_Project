@@ -30,7 +30,7 @@ export default class Character_Ski {
     }
 
     _updateSurface(surface) {
-        this.surface = surface;
+        this.surface.push(surface);
     }
 
     onkeydown(event) {
@@ -81,8 +81,8 @@ export default class Character_Ski {
         downVector.applyQuaternion(this.mesh.quaternion); // Adjust to skier's current rotation
     
         const raycaster = new THREE.Raycaster(this.mesh.position, downVector);
-        const intersects = raycaster.intersectObject(this.surface, true);
-    
+        const intersects = raycaster.intersectObjects(this.surface, true);
+        console.log(intersects[0]);
         if (intersects.length > 0) {
             const hit = intersects[0];
             const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
@@ -92,7 +92,7 @@ export default class Character_Ski {
     
             this.mesh.quaternion.slerp(targetQuaternion, 0.2);
     
-            this.mesh.position.y = hit.point.y + 0.800;
+            this.mesh.position.y = hit.point.y + 1.200;
         }
         const velocity = this._velocity;
         const frameDecceleration = new THREE.Vector3(
@@ -124,13 +124,13 @@ export default class Character_Ski {
             velocity.z = Math.max(velocity.z, 0);
         }
         if (this.keys.left) {
-          _A.set(0, 1.4, 0);
+          _A.set(0, 1.1, 0);
           _Q.setFromAxisAngle(_A, 1.1 * Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
             velocity.x += this._acceleration.x * timeInSeconds * this._velocity.z;
         }
         if (this.keys.right) {
-          _A.set(0, 1.4, 0);
+          _A.set(0, 1.1, 0);
           _Q.setFromAxisAngle(_A, 1.1 * -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
             velocity.x -= this._acceleration.x * timeInSeconds * this._velocity.z;
@@ -155,7 +155,7 @@ export default class Character_Ski {
     
         controlObject.position.add(forward);
 
-        this.mesh.position.x = Math.min(Math.max(this.mesh.position.x, -this.surface.geometry.parameters.width / 2 + 25), this.surface.geometry.parameters.width / 2 - 25);
+        this.mesh.position.x = Math.min(Math.max(this.mesh.position.x, -intersects[0].object.geometry.parameters.width / 2 + 25), intersects[0].object.geometry.parameters.width / 2 - 25);
     
         oldPosition.copy(controlObject.position);   
     }
@@ -334,7 +334,7 @@ export default class Character_Ski {
 
 
         var light = new THREE.SpotLight(0xffffff, 3);
-        light.decay = 0.3;
+        light.decay = 0.5;
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);

@@ -22,6 +22,11 @@ export default class Sun {
         console.log(this.mesh.rotation.x);
         this.mesh.position.x = Math.sin(this.step) * 200;
         this.mesh.position.y = Math.cos(this.step) * 200;
-        this.step += 0.01;
+        
+        //get the light
+        const light = this.mesh.children[0];
+        light.intensity = Math.max(0, Math.sin(this.step + Math.PI / 2)) * 10;
+
+        this.step += 0.001;
     }
 }

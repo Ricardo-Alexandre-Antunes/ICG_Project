@@ -16,6 +16,7 @@ export default class Character_Ski {
         this._acceleration = new THREE.Vector3(1.5, 2, 50.0);
         this._velocity = new THREE.Vector3(0, 0, 0);
         this.counter = 0;
+        this.score = 0;
         this.createMesh();
 
 
@@ -76,13 +77,13 @@ export default class Character_Ski {
     }
 
     Update(timeInSeconds) {
+        console.log(this.score);
         // Raycast downwards from the skier to detect the nearest surface
         const downVector = new THREE.Vector3(0, -1, 0);
         downVector.applyQuaternion(this.mesh.quaternion); // Adjust to skier's current rotation
     
         const raycaster = new THREE.Raycaster(this.mesh.position, downVector);
         const intersects = raycaster.intersectObjects(this.surface, true);
-        console.log(intersects[0]);
         if (intersects.length > 0) {
             const hit = intersects[0];
             const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
@@ -117,7 +118,6 @@ export default class Character_Ski {
         if (this.keys.forward) {
           velocity.z += this._acceleration.z * timeInSeconds;
           velocity.z = Math.min(velocity.z, 25 + 0.1 * (Date.now() - this.start) / 100);
-          console.log(velocity.z);
         }
         if (this.keys.backward) {
           velocity.z -= this._acceleration.z * timeInSeconds;
@@ -159,7 +159,6 @@ export default class Character_Ski {
     
         oldPosition.copy(controlObject.position);   
     }
-
     
 
 
@@ -216,9 +215,6 @@ export default class Character_Ski {
         this.mesh.children[9].rotation.z = -0.3;
     }
 
-    updateCamera() {
-
-    }
 
     createMesh() {
         this.mesh = new THREE.Mesh();
@@ -333,8 +329,8 @@ export default class Character_Ski {
 
 
 
-        var light = new THREE.SpotLight(0xffffff, 3);
-        light.decay = 0.5;
+        var light = new THREE.SpotLight(0xffffff, 10);
+        light.decay = 0.3;
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);

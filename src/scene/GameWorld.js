@@ -181,6 +181,15 @@ export default class GameWorld {
                 this.sceneGraph.remove(this.floor.shift().mesh);
             }
         }
+
+        //check which floor skier is in
+        for (let i = 0; i < this.floor.length; i++) {
+            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size);
+            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size) {
+                this.floor[i].checkSkierScore(this.skier);
+                break;
+            }
+        }
     }
 
 

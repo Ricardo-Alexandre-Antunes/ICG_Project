@@ -13,12 +13,15 @@ export default class Mountain {
         this.steepness = steepness;
         this.seed = seed;
         this.rocks = rocks;
+        this.skiers = [];
+
         this.heightMap = []; // Store the height values for quick lookup
         this.mesh = this.createMountain();
         this.rocks = this.generateRocks();
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
         this.generateGates(-this.size / 2 + 15, 0xff0000);
+        this.checkedGates = this.gates.clone();
         this.mesh.add(this.rocks);
         this.mesh.add(this.generateTrees());
     }
@@ -43,7 +46,7 @@ export default class Mountain {
 
         geometry.computeVertexNormals();
 
-        const texture = new THREE.TextureLoader().load('../assets/snow_01_diff_4k.jpg');
+        const texture = new THREE.TextureLoader().load('./src/assets/snow_01_diff_4k.jpg');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(10, 5);
@@ -84,13 +87,12 @@ export default class Mountain {
     }
 
     generateGates(z_pos, color) {
-        console.log(z_pos);
         if (z_pos > this.size / 2 - 10) {
             return;
         }
 
         const gate = new SlalomGate(new THREE.TextureLoader(), null, color);
-        const x_pos = Math.random() * 30 + 35;
+        const x_pos = Math.random() * 10 + 15;
 
         switch (color) {
             case 0xff0000:
@@ -131,5 +133,47 @@ export default class Mountain {
         trees.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI * this.steepness);
         return trees;
 
+    }
+
+    checkSkierScore(skier) {
+        if (!this.skiers.includes(skier)) {
+            this.skiers.push(skier);
+        }
+        // check if skier has passed through next gate from the right side
+        // if wrong side take a point away
+        if (this.skiers.includes(skier)) {
+            //if first gate is in range
+            const gates = this.gates.children;
+            if (gates[0].position.z > skier.mesh.position.z - 1 && gates[0].position.z < skier.mesh.position.z) {
+                //if skier is on the right side of the first gate
+                if (gates[0].position.x < skier.mesh.position.x + 1 && gates[0].position.x > skier.mesh.position.x - 1) {
+                    //remove the gate from the checked gates
+                    skier.score += 1;
+                } else {
+                    //if skier is on the wrong side of the gate
+                    skier.score -= 1;
+                }
+                console.log(this.checkedGates);
+                this.checkedGates.remove(gates[0]);
+                console.log(this.checkedGates);
+            }
+            
+        }
+
+        // check if skier hit a rock
+        // if so make the skier blink and slow it down
+        if (this.skiers.includes(skier)) {
+            const skierPos = skier.mesh.position;
+            const rocks = this.rocks.children;
+            for (let i = 0; i < rocks.length; i++) {
+                if (rocks[i].position.distanceTo(skierPos) < 1) {
+                    skier.velocity = new THREE.Vector3(0, 0, 0);
+                    setTimeout(() => {
+                        skier.mesh.visible = !skier.mesh.visible;
+                    }
+                    , 100, 2);
+                }
+            }
+        }
     }
 }

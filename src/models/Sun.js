@@ -19,7 +19,6 @@ export default class Sun {
     }
 
     Update() {
-        console.log(this.mesh.rotation.x);
         this.mesh.position.x = Math.sin(this.step) * 200;
         this.mesh.position.y = Math.cos(this.step) * 200;
         

@@ -146,27 +146,28 @@ export default class Mountain {
         // if wrong side take a point away
         if (this.skiers.includes(skier)) {
             //if first gate is in range
-            const gates = this.checkedGates.sort((a, b) => a.position.y - b.position.y).filter(gate => gate.position.y > skier.mesh.position.z - 10);
+            const worldPosition = new THREE.Vector3();
+            
+            const gates = this.checkedGates.sort((gate1, gate2) => {
+                return -gate1.position.y - skier.mesh.position.z - (-gate2.position.y - skier.mesh.position.z);
+            }).filter(gate => -gate.position.y > skier.mesh.position.z - 10);
             if (gates.length == 0) {
                 return;
             }
-            const distances = gates.map(gate => gate.position.y - skier.mesh.position.z);
+            const distances = gates.map(gate => (-gate.position.y + this.mesh.position.z) - skier.mesh.position.z);
             console.log("gates", gates);
             console.log("distances", distances);
-
-            switch (gates[0].color) {
-                case 0xff0000:
-                    // left / red gates
-                    skier.score += (gates[0].position.x < skier.mesh.position.x + 1) ? 1 : -1;
-                    break;
-                case 0x0000ff:
-                    // right / blue gates
-                    skier.score += (gates[0].position.x > skier.mesh.position.x - 1) ? 1 : -1;
-                    break;
+            if (-gates[0].position.y < skier.mesh.position.z && -gates[0].position.y > skier.mesh.position.z - 1) {
+                if ((gates[0].position.x < 0 && skier.mesh.position.x < gates[0].position.x) || (gates[0].position.x > 0 && skier.mesh.position.x > gates[0].position.x)) {
+                    skier.score += 1;
+                }
+                else {
+                    skier.score -= 1;
+                }
+                console.log("gates before", this.checkedGates);
+                this.checkedGates.shift();                
+                console.log("gates after", this.checkedGates);
             }
-            console.log("gates before", this.checkedGates);
-            this.checkedGates.shift();                
-            console.log("gates after", this.checkedGates);
             
         }
 

@@ -59,6 +59,9 @@ export default class SlalomGate {
 
         // Grouping all elements
         this.group.add(leftPole, rightPole, flag);
+
+
+
     }
 
     getObject() {

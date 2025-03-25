@@ -127,13 +127,13 @@ export default class Character_Ski {
           _A.set(0, 1, 0);
           _Q.setFromAxisAngle(_A, 1.1 * Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
-            velocity.x += this._acceleration.x * timeInSeconds * this._velocity.z;
+            velocity.x += this._acceleration.x * this._velocity.x * 1.5;
         }
         if (this.keys.right) {
           _A.set(0, 1, 0);
           _Q.setFromAxisAngle(_A, 1.1 * -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
-            velocity.x -= this._acceleration.x * timeInSeconds * this._velocity.z;
+            velocity.x -= this._acceleration.x * this._velocity.x * 1.5;
         }
 
         //face the way skier is moving

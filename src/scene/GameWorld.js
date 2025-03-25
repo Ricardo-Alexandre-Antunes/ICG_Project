@@ -121,7 +121,7 @@ export default class GameWorld {
         this.animatedObjects.push(this.skier);
 
         //skier's camera
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
         const params = 
         {
             camera: camera,
@@ -168,7 +168,7 @@ export default class GameWorld {
         var detectPoint = this.floor[this.floor.length - 2];
         const angle = -Math.PI / 2 * lastFloor.steepness
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 2; i++) {
                 const newFloor = new Mountain(lastFloor.size);
                 newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 2;
                 newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) + 0.5;
@@ -184,8 +184,8 @@ export default class GameWorld {
 
         //check which floor skier is in
         for (let i = 0; i < this.floor.length; i++) {
-            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size);
-            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size) {
+            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size / 2);
+            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size / 2) {
                 this.floor[i].checkSkierScore(this.skier);
                 break;
             }

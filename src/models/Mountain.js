@@ -21,7 +21,7 @@ export default class Mountain {
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
         this.generateGates(-this.size / 2 + 15, 0xff0000);
-        this.checkedGates = this.gates.clone();
+        this.checkedGates = this.gates.clone().children;
         this.mesh.add(this.rocks);
         this.mesh.add(this.generateTrees());
     }
@@ -136,6 +136,9 @@ export default class Mountain {
     }
 
     checkSkierScore(skier) {
+        if (this.checkedGates.length == 0) {
+            return;
+        }
         if (!this.skiers.includes(skier)) {
             this.skiers.push(skier);
         }
@@ -143,20 +146,27 @@ export default class Mountain {
         // if wrong side take a point away
         if (this.skiers.includes(skier)) {
             //if first gate is in range
-            const gates = this.gates.children;
-            if (gates[0].position.z > skier.mesh.position.z - 1 && gates[0].position.z < skier.mesh.position.z) {
-                //if skier is on the right side of the first gate
-                if (gates[0].position.x < skier.mesh.position.x + 1 && gates[0].position.x > skier.mesh.position.x - 1) {
-                    //remove the gate from the checked gates
-                    skier.score += 1;
-                } else {
-                    //if skier is on the wrong side of the gate
-                    skier.score -= 1;
-                }
-                console.log(this.checkedGates);
-                this.checkedGates.remove(gates[0]);
-                console.log(this.checkedGates);
+            const gates = this.checkedGates.sort((a, b) => a.position.y - b.position.y).filter(gate => gate.position.y > skier.mesh.position.z - 10);
+            if (gates.length == 0) {
+                return;
             }
+            const distances = gates.map(gate => gate.position.y - skier.mesh.position.z);
+            console.log("gates", gates);
+            console.log("distances", distances);
+
+            switch (gates[0].color) {
+                case 0xff0000:
+                    // left / red gates
+                    skier.score += (gates[0].position.x < skier.mesh.position.x + 1) ? 1 : -1;
+                    break;
+                case 0x0000ff:
+                    // right / blue gates
+                    skier.score += (gates[0].position.x > skier.mesh.position.x - 1) ? 1 : -1;
+                    break;
+            }
+            console.log("gates before", this.checkedGates);
+            this.checkedGates.shift();                
+            console.log("gates after", this.checkedGates);
             
         }
 

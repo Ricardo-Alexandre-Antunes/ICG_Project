@@ -124,13 +124,13 @@ export default class Character_Ski {
             velocity.z = Math.max(velocity.z, 0);
         }
         if (this.keys.left) {
-          _A.set(0, 1.1, 0);
+          _A.set(0, 1, 0);
           _Q.setFromAxisAngle(_A, 1.1 * Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
             velocity.x += this._acceleration.x * timeInSeconds * this._velocity.z;
         }
         if (this.keys.right) {
-          _A.set(0, 1.1, 0);
+          _A.set(0, 1, 0);
           _Q.setFromAxisAngle(_A, 1.1 * -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
             velocity.x -= this._acceleration.x * timeInSeconds * this._velocity.z;
@@ -330,7 +330,9 @@ export default class Character_Ski {
 
 
         var light = new THREE.SpotLight(0xffffff, 10);
-        light.decay = 0.3;
+        light.decay = 0.6;
+        light.customDistanceMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        light.distance = 200;
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);

@@ -6,7 +6,7 @@ export default class Rock {
         this.geometry = new THREE.IcosahedronGeometry(1, 3); // More subdivisions for smoother shape
         this.material = new THREE.MeshStandardMaterial({
             color: 0x8b7d6b,
-            flatShading: false,
+            flatShading: true,
         });
 
         this.applyNoiseDistortion(); // Apply procedural noise

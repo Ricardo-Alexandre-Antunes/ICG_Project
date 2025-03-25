@@ -136,6 +136,7 @@ export default class Mountain {
     }
 
     checkSkierScore(skier) {
+        console.log("unchecked gates", this.checkedGates);
         if (this.checkedGates.length == 0) {
             return;
         }
@@ -145,29 +146,36 @@ export default class Mountain {
         // check if skier has passed through next gate from the right side
         // if wrong side take a point away
         if (this.skiers.includes(skier)) {
-            //if first gate is in range
-            const worldPosition = new THREE.Vector3();
-            
+            const skierPosition = (skier.mesh.position.z - this.mesh.position.z) / Math.abs(Math.sin(this.mesh.rotation.x));
             const gates = this.checkedGates.sort((gate1, gate2) => {
-                return -gate1.position.y - skier.mesh.position.z - (-gate2.position.y - skier.mesh.position.z);
-            }).filter(gate => -gate.position.y > skier.mesh.position.z - 10);
+                return -gate1.position.y + gate2.position.y;
+            }).filter(gate => -gate.position.y > skierPosition - 10);
             if (gates.length == 0) {
                 return;
             }
-            const distances = gates.map(gate => (-gate.position.y + this.mesh.position.z) - skier.mesh.position.z);
+            console.log("skierPosition", skierPosition);
+            const positions = gates.map(gate => -gate.position.y);
+            const distances = gates.map(gate => Math.abs(-gate.position.y - skierPosition));
             console.log("gates", gates);
+            console.log("positions", positions);
             console.log("distances", distances);
-            if (-gates[0].position.y < skier.mesh.position.z && -gates[0].position.y > skier.mesh.position.z - 1) {
-                if ((gates[0].position.x < 0 && skier.mesh.position.x < gates[0].position.x) || (gates[0].position.x > 0 && skier.mesh.position.x > gates[0].position.x)) {
-                    skier.score += 1;
-                }
-                else {
-                    skier.score -= 1;
-                }
+            if (-gates[0].position.y < skierPosition && -gates[0].position.y > skierPosition - 1) {
                 console.log("gates before", this.checkedGates);
                 this.checkedGates.shift();                
                 console.log("gates after", this.checkedGates);
+                if ((gates[0].position.x < 0 && skier.mesh.position.x < gates[0].position.x) || (gates[0].position.x > 0 && skier.mesh.position.x > gates[0].position.x)) {
+                    skier.score += 1;
+                    return 1;
+                }
+                else {
+                    if (skier.score > 0) {
+                        skier.score -= 1;
+                        return -1;
+                    }
+                }
+
             }
+            return 0;
             
         }
 

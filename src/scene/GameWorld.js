@@ -15,6 +15,7 @@ export default class GameWorld {
         this.htmlElement = document.querySelector("#MainScene");
         this.previousRAF = null;
         this.start = Date.now();
+        this.timeLeft = 30 * 1000;
         this._Initialize();
     }
 
@@ -74,7 +75,39 @@ export default class GameWorld {
         this.fpsDisplay.style.fontSize = "14px"; // Make it readable
         this.fpsDisplay.style.width = "80px"; // Give it some width
 
+        //display timer on center top with funny animations
+        this.timerDisplay = document.createElement("div");
+        this.timerDisplay.style.position = "absolute";
+        this.timerDisplay.style.top = "10px";
+        this.timerDisplay.style.left = "50%";
+        this.timerDisplay.style.transform = "translateX(-50%)";
+        this.timerDisplay.style.color = "white";
+        this.timerDisplay.style.background = "rgba(0,0,0,0.7)";
+        this.timerDisplay.style.padding = "5px";
+        this.timerDisplay.style.fontFamily = "Arial";
+        this.timerDisplay.style.color = "lime";  // Change text color to green
+        this.timerDisplay.style.fontSize = "14px"; // Make it readable
+        this.timerDisplay.style.width = "80px"; // Give it some width
+        this.timerDisplay.innerHTML = "Time Left: 30s";
+
+
+        //skier score
+        this.scoreDisplay = document.createElement("div");
+        this.scoreDisplay.style.position = "absolute";
+        this.scoreDisplay.style.top = "10px";
+        this.scoreDisplay.style.right = "10px";
+        this.scoreDisplay.style.color = "white";
+        this.scoreDisplay.style.background = "rgba(0,0,0,0.7)";
+        this.scoreDisplay.style.padding = "5px";
+        this.scoreDisplay.style.fontFamily = "Arial";
+        this.scoreDisplay.style.color = "lime";  // Change text color to green
+        this.scoreDisplay.style.fontSize = "14px"; // Make it readable
+        this.scoreDisplay.style.width = "80px"; // Give it some width
+        this.scoreDisplay.innerHTML = "Score: 0";
+
+        document.body.appendChild(this.timerDisplay);
         document.body.appendChild(this.fpsDisplay);
+        document.body.appendChild(this.scoreDisplay);
 
 
         this._addObjects();
@@ -134,6 +167,15 @@ export default class GameWorld {
 
     }
 
+    _skierLose() {
+        console.log("You lose");
+        this.skier.score = 0;   
+        this.skier.mesh.position.z = 0;
+        this.skier.mesh.position.y = 10;
+        this.skier.mesh.position.x = 0;
+
+    }
+
     _onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
@@ -143,12 +185,18 @@ export default class GameWorld {
     render() {
         const now = performance.now();
         this.frameCount++;
+        this.scoreDisplay.innerHTML = `Score: ${this.skier.score}`;
         if (now - this.lastFrameTime >= 1000) {
             this.fps = this.frameCount;
+            this.timeLeft -= 1000;
+            this.timerDisplay.innerHTML = `Time Left: ${Math.floor(this.timeLeft / 1000)}s`;
+            console.log("time left", this.timeLeft);
             this.frameCount = 0;
             this.lastFrameTime = now;
             this.fpsDisplay.innerHTML = `FPS: ${this.fps}`;
+            
             console.log("fps", this.fps);
+
         }
         this.renderer.render(this.sceneGraph, this.camera);
     }
@@ -184,11 +232,20 @@ export default class GameWorld {
 
         //check which floor skier is in
         for (let i = 0; i < this.floor.length; i++) {
-            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size / 2);
-            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size / 2) {
-                this.floor[i].checkSkierScore(this.skier);
-                break;
+            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2);
+            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2) {
+                const pass_gate = this.floor[i].checkSkierScore(this.skier);
+                if (pass_gate == -1) {
+                    this.timeLeft -= 3000;
+                }
+                if (pass_gate == 1) {
+                    this.timeLeft += 1000;
+                }
             }
+        }
+        if (this.timeLeft <= 0) {
+            this._skierLose();
+            this.timeLeft = 30 * 1000;
         }
     }
 

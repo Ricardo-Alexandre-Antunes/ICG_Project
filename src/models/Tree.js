@@ -11,7 +11,8 @@ export default class Tree {
         const cylinderRadius = 5;
         const cylinderHeight = 20;
         const cylinderGeometry = new THREE.CylinderGeometry(cylinderRadius, cylinderRadius, cylinderHeight, 32);
-        const redMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+        const texture = new THREE.TextureLoader().load('./src/assets/wood.jpg');
+        const redMaterial = new THREE.MeshLambertMaterial({ color: 0x964B00, map: texture });
         const cylinder = new THREE.Mesh(cylinderGeometry, redMaterial);
         cylinder.receiveShadow = true;
         cylinder.castShadow = true;
@@ -23,7 +24,8 @@ export default class Tree {
         const baseConeRadius = 10;
         const coneHeight = 30;
         const coneGeometry = new THREE.ConeGeometry(baseConeRadius, coneHeight, 32);
-        const greenMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+        const texture2 = new THREE.TextureLoader().load('./src/assets/leaves.jpg');
+        const greenMaterial = new THREE.MeshLambertMaterial({ color: 0x06402B, map: texture2 });
         const cone = new THREE.Mesh(coneGeometry, greenMaterial);
         cone.receiveShadow = true;
         cone.castShadow = true;

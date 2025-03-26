@@ -53,9 +53,13 @@ export default class SpotlightModel {
     }
 
     createLight() {
-        const spotlight = new THREE.SpotLight(0xffffff, 4, 50, Math.PI / 6, 0.5, 1.5);
+        const spotlight = new THREE.SpotLight(0xffffff, 4, 500, Math.PI / 6, 0.5, 1.5);
         spotlight.position.set(0, 0, 0);
-        spotlight.target.position.set(0, 0, 6);
+        spotlight.target.position.set(0, -0.001, 600);
+        spotlight.castShadow = true;
+        spotlight.shadow.mapSize.width = 1024;
+        spotlight.shadow.mapSize.height = 1024;
+        spotlight.decay = 0;
         this.group.add(spotlight);
         this.group.add(spotlight.target);
     }

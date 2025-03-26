@@ -19,7 +19,7 @@ There will be many fonts of illumination:
 
 The character's headlight will also be able to be moved with the mouse in the 1st person view.
 
-## Project Iterations - Currently on Step 2
+## Project Iterations - Currently on Step 3
 **Step 1 - Model Creation**
 
 During this time I will create the models for:

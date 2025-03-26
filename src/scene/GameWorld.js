@@ -169,10 +169,53 @@ export default class GameWorld {
 
     _skierLose() {
         console.log("You lose");
-        this.skier.score = 0;   
-        this.skier.mesh.position.z = 0;
-        this.skier.mesh.position.y = 10;
-        this.skier.mesh.position.x = 0;
+        this.timeLeft = 30 * 1000;
+        this.floor.forEach((floor) => {
+            this.sceneGraph.remove(floor.mesh);
+        }
+        );
+        this.floor = [];
+        this.sceneGraph.remove(this.skier.mesh);
+        //remove camera
+        this.allCameras.forEach((camera) => {
+            this.sceneGraph.remove(camera);
+        });
+        this.allCameras = [];
+    
+
+        //mountain
+        const mountain = new Mountain(500);
+        this.sceneGraph.add(mountain.mesh);
+        this.floor.push(mountain);
+
+        //2nd mountain
+        const mountain2 = new Mountain(500);
+        const angle = -Math.PI / 2 * mountain.steepness
+        mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle) - 2;
+        mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle) + 0.5;
+        this.sceneGraph.add(mountain2.mesh);
+        this.floor.push(mountain2);
+
+        //skier
+        this.skier = new Character_Ski([mountain.mesh, mountain2.mesh]);
+        this.skier.mesh.scale.set(0.1, 0.1, 0.1);
+        this.sceneGraph.add(this.skier.mesh);
+        this.animatedObjects.push(this.skier);
+
+        //skier's camera
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+        const params = 
+        {
+            camera: camera,
+            target: this.skier.mesh
+        };
+        const skierCamera = new ThirdPersonCamera(params);
+        this.camera = skierCamera._camera;
+        this.allCameras.push(skierCamera._camera);
+        this.animatedObjects.push(skierCamera);
+
+    
+        
 
     }
 

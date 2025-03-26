@@ -92,8 +92,8 @@ export default class Character_Ski {
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(upVector, worldNormal);
     
             this.mesh.quaternion.slerp(targetQuaternion, 0.2);
-    
-            this.mesh.position.y = hit.point.y + 1.200;
+            console.log("compare", hit.point.y + 1.200, this.mesh.position.y);
+            this.mesh.position.y = Math.max(hit.point.y + 1.200, this.mesh.position.y);
         }
         const velocity = this._velocity;
         const frameDecceleration = new THREE.Vector3(
@@ -125,15 +125,15 @@ export default class Character_Ski {
         }
         if (this.keys.left) {
           _A.set(0, 1, 0);
-          _Q.setFromAxisAngle(_A, 1.1 * Math.PI * timeInSeconds * this._acceleration.y);
+          _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
-            velocity.x += this._acceleration.x * this._velocity.x * 1.5;
+            velocity.x += this._acceleration.x * this._velocity.x * 0.5;
         }
         if (this.keys.right) {
           _A.set(0, 1, 0);
-          _Q.setFromAxisAngle(_A, 1.1 * -Math.PI * timeInSeconds * this._acceleration.y);
+          _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
-            velocity.x -= this._acceleration.x * this._velocity.x * 1.5;
+            velocity.x -= this._acceleration.x * this._velocity.x * 0.5;
         }
 
         //face the way skier is moving
@@ -155,8 +155,9 @@ export default class Character_Ski {
     
         controlObject.position.add(forward);
 
-        this.mesh.position.x = Math.min(Math.max(this.mesh.position.x, -intersects[0].object.geometry.parameters.width / 2 + 25), intersects[0].object.geometry.parameters.width / 2 - 25);
-    
+        if (intersects.length > 0) {
+            this.mesh.position.x = Math.min(Math.max(this.mesh.position.x, -intersects[0].object.geometry.parameters.width / 2 + 25), intersects[0].object.geometry.parameters.width / 2 - 25);
+        }
         oldPosition.copy(controlObject.position);   
     }
     

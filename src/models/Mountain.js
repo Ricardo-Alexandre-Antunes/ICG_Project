@@ -3,9 +3,10 @@ import { ImprovedNoise } from 'https://unpkg.com/three/examples/jsm/math/Improve
 import Rock from './Rock.js';
 import SlalomGate from './SlalomGate.js';
 import Tree from './Tree.js';
+import SpotLightModel from './Spotlight.js';
 
 export default class Mountain {
-    constructor(size = 250, resolution = 130, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random()) {
+    constructor(size = 250, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random()) {
         this.size = size;
         this.resolution = resolution;
         this.heightScale = heightScale;
@@ -22,6 +23,7 @@ export default class Mountain {
         this.mesh.add(this.gates);
         this.generateGates(-this.size / 2 + 15, 0xff0000);
         this.checkedGates = this.gates.clone().children;
+        this.generateSpotlight();
         this.mesh.add(this.rocks);
         this.mesh.add(this.generateTrees());
     }
@@ -37,7 +39,7 @@ export default class Mountain {
                 const index = (j * (this.resolution + 1) + i) * 3;
                 const x = (i / this.resolution - 0.5) * this.size;
                 const y = (j / this.resolution - 0.5) * this.size;
-                const height = noise.noise(x * this.seed * Math.pow(2, 5), y * this.seed * Math.pow(2, 5), 10);
+                const height = noise.noise(x * this.seed * 3, y * this.seed * 3, 1);
 
                 vertices[index + 2] = height; // Modify the height in geometry
                 this.heightMap[j][i] = height; // Save height in heightMap
@@ -133,6 +135,16 @@ export default class Mountain {
         trees.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI * this.steepness);
         return trees;
 
+    }
+
+    generateSpotlight() {
+        for (let i = 0; i < 3; i++) {
+            const spotlight = new SpotLightModel().getObject();
+            spotlight.position.set(Math.sign(Math.random() - 0.5) * this.size / 2 - (Math.random() * 10), Math.random() * this.size - this.size / 2, 6);
+            spotlight.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+            spotlight.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+            this.mesh.add(spotlight);
+        }
     }
 
     checkSkierScore(skier) {

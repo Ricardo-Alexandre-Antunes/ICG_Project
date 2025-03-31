@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ImprovedNoise } from 'https://unpkg.com/three/examples/jsm/math/ImprovedNoise.js';
+import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/+esm';
 import Rock from './Rock.js';
 import SlalomGate from './SlalomGate.js';
 import Tree from './Tree.js';
@@ -16,6 +16,8 @@ export default class Mountain {
         this.rocks = rocks;
         this.skiers = [];
 
+
+        this.noise = new SimplexNoise(this.seed);
         this.heightMap = []; // Store the height values for quick lookup
         this.mesh = this.createMountain();
         this.rocks = this.generateRocks();
@@ -23,14 +25,13 @@ export default class Mountain {
         this.mesh.add(this.gates);
         this.generateGates(-this.size / 2 + 15, 0xff0000);
         this.checkedGates = this.gates.clone().children;
-        this.generateSpotlight();
+        //this.generateSpotlight();
         this.mesh.add(this.rocks);
         this.mesh.add(this.generateTrees());
     }
 
     createMountain() {
         const geometry = new THREE.PlaneGeometry(this.size, this.size, this.resolution, this.resolution);
-        const noise = new ImprovedNoise();
         const vertices = geometry.attributes.position.array;
         this.heightMap = new Array(this.resolution + 1).fill().map(() => new Array(this.resolution + 1).fill(0));
 
@@ -39,10 +40,10 @@ export default class Mountain {
                 const index = (j * (this.resolution + 1) + i) * 3;
                 const x = (i / this.resolution - 0.5) * this.size;
                 const y = (j / this.resolution - 0.5) * this.size;
-                const height = noise.noise(x * this.seed * 3, y * this.seed * 3, 1);
+                const height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
 
-                vertices[index + 2] = height; // Modify the height in geometry
-                this.heightMap[j][i] = height; // Save height in heightMap
+                vertices[index + 2] = height;
+                this.heightMap[j][i] = height;
             }
         }
 
@@ -62,8 +63,8 @@ export default class Mountain {
 
     heightAtPoint(x, y) {
         // Convert world coordinates to grid indices
-        const i = Math.round((x / this.size + 0.5) * this.resolution);
-        const j = Math.round((y / this.size + 0.5) * this.resolution);
+        const i = Math.floor((x / this.size + 0.5) * this.resolution);
+        const j = Math.floor((y / this.size + 0.5) * this.resolution);
 
         if (i < 0 || i > this.resolution || j < 0 || j > this.resolution) {
             return 0; // Out of bounds, return base height
@@ -79,17 +80,17 @@ export default class Mountain {
             const rock = sharedRock.clone();
             rock.position.x = Math.random() * this.size - this.size / 2;
             rock.position.z = Math.random() * this.size - this.size / 2;
-            rock.position.y = 0
-            rock.rotation.y = Math.random() * Math.PI;
-            rock.scale.setScalar(Math.random() * 1.5 * (this.size/250) + 0.5);
+            rock.position.y = this.heightAtPoint(rock.position.x, rock.position.z);
+            rock.scale.setScalar(Math.random() * 1.5 * (this.size/250) + 2.5);
             rocks.add(rock);
         }
-        rocks.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI * this.steepness);
+        rocks.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
         return rocks;
     }
 
     generateGates(z_pos, color) {
         if (z_pos > this.size / 2 - 10) {
+            this.gates.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
             return;
         }
 
@@ -99,16 +100,14 @@ export default class Mountain {
         switch (color) {
             case 0xff0000:
                 // left / red gates
-                gate.group.position.set(x_pos, z_pos, this.heightAtPoint(1, z_pos));
-                gate.group.rotation.x = Math.PI / 2;
+                gate.group.position.set(x_pos, this.heightAtPoint(1, z_pos), z_pos);
                 gate.group.scale.setScalar(1.2);
                 this.gates.add(gate.group);
                 color = 0x0000ff;
                 break;
             case 0x0000ff:
                 // right / blue gates
-                gate.group.position.set(-x_pos, z_pos, this.heightAtPoint(-1, z_pos));
-                gate.group.rotation.x = Math.PI / 2;
+                gate.group.position.set(-x_pos, this.heightAtPoint(-1, z_pos), z_pos);
                 gate.group.scale.setScalar(1.2);
                 this.gates.add(gate.group);
                 color = 0xff0000;
@@ -128,11 +127,11 @@ export default class Mountain {
             tree.position.x = Math.sign(Math.random() - 0.5) * (this.size / 2 - Math.random() * 20);
             tree.position.z = Math.random() * this.size - this.size / 2;
             tree.position.y = this.heightAtPoint(tree.position.x, tree.position.z);
-            tree.rotation.x = Math.PI;
+            //tree.rotation.x = Math.PI;
             tree.scale.setScalar(Math.random() * 0.5 + 0.3);
             trees.add(tree);
         }
-        trees.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI * this.steepness);
+        trees.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
         return trees;
 
     }

@@ -26,6 +26,6 @@ export default class Sun {
         const light = this.mesh.children[0];
         light.intensity = Math.max(0, Math.sin(this.step + Math.PI / 2)) * 10;
 
-        this.step += 0.001;
+        this.step += 0.0002;
     }
 }

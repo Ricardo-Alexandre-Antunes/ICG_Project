@@ -169,7 +169,7 @@ export default class GameWorld {
 
     _skierLose() {
         console.log("You lose");
-        this.timeLeft = 30 * 1000;
+        this.timeLeft = 30 * 10000;
         this.floor.forEach((floor) => {
             this.sceneGraph.remove(floor.mesh);
         }
@@ -226,6 +226,23 @@ export default class GameWorld {
     }
     
     render() {
+        //check which floor skier is in
+        for (let i = 0; i < this.floor.length; i++) {
+            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2);
+            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2) {
+                const pass_gate = this.floor[i].checkSkierScore(this.skier);
+                if (pass_gate == -1) {
+                    this.timeLeft -= 3000;
+                }
+                if (pass_gate == 1) {
+                    this.timeLeft += 1000;
+                }
+            }
+        }
+        if (this.timeLeft <= 0) {
+            this._skierLose();
+        }
+
         const now = performance.now();
         this.frameCount++;
         this.scoreDisplay.innerHTML = `Score: ${this.skier.score}`;
@@ -261,8 +278,8 @@ export default class GameWorld {
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 2; i++) {
                 const newFloor = new Mountain(lastFloor.size);
-                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 2;
-                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) + 0.5;
+                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 40;
+                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) - 30;
                 this.sceneGraph.add(newFloor.mesh);
                 this.skier._updateSurface(newFloor.mesh);
                 this.floor.push(newFloor);
@@ -273,23 +290,7 @@ export default class GameWorld {
             }
         }
 
-        //check which floor skier is in
-        for (let i = 0; i < this.floor.length; i++) {
-            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2);
-            if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2) {
-                const pass_gate = this.floor[i].checkSkierScore(this.skier);
-                if (pass_gate == -1) {
-                    this.timeLeft -= 3000;
-                }
-                if (pass_gate == 1) {
-                    this.timeLeft += 1000;
-                }
-            }
-        }
-        if (this.timeLeft <= 0) {
-            this._skierLose();
-            this.timeLeft = 30 * 1000;
-        }
+
     }
 
 

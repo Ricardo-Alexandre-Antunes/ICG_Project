@@ -16,6 +16,7 @@ export default class Character_Ski {
         this._acceleration = new THREE.Vector3(1.5, 2, 50.0);
         this._velocity = new THREE.Vector3(0, 0, 0);
         this.counter = 0;
+        this.onGround = false;
         this.score = 0;
         this.createMesh();
 
@@ -91,9 +92,24 @@ export default class Character_Ski {
             const upVector = new THREE.Vector3(0, 1, 0);
             const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(upVector, worldNormal);
     
+            // apply gravity until the skier is on the ground
+            if (this.mesh.position.y <= hit.point.y + 2.200) {
+                this.mesh.position.y = hit.point.y + 1.200;
+                this.onGround = true;
+            }
+            else {
+                this.onGround = false;
+            }
             this.mesh.quaternion.slerp(targetQuaternion, 0.2);
             console.log("compare", hit.point.y + 1.200, this.mesh.position.y);
-            this.mesh.position.y = Math.max(hit.point.y + 1.200, this.mesh.position.y);
+            this.mesh.position.y = Math.max(hit.point.y + 1.200, this.mesh.position.y - 0.3);
+        }
+        else {
+            // If no surface is detected, apply gravity
+            this.onGround = false;
+            const gravity = new THREE.Vector3(0, -0.3, 0);
+            gravity.applyQuaternion(this.mesh.quaternion);
+            this.mesh.position.add(gravity);
         }
         const velocity = this._velocity;
         const frameDecceleration = new THREE.Vector3(
@@ -115,11 +131,11 @@ export default class Character_Ski {
         const _A = new THREE.Vector3();
         const _R = controlObject.quaternion.clone();
     
-        if (this.keys.forward) {
+        if (this.keys.forward && this.onGround) {
           velocity.z += this._acceleration.z * timeInSeconds;
-          velocity.z = Math.min(velocity.z, 25 + 0.1 * (Date.now() - this.start) / 100);
+          velocity.z = Math.min(velocity.z, 25 + 0.2 * (Date.now() - this.start) / 100);
         }
-        if (this.keys.backward) {
+        if (this.keys.backward && this.onGround) {
           velocity.z -= this._acceleration.z * timeInSeconds;
             velocity.z = Math.max(velocity.z, 0);
         }
@@ -127,16 +143,19 @@ export default class Character_Ski {
           _A.set(0, 1, 0);
           _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
-            velocity.x += this._acceleration.x * this._velocity.x * 0.5;
+            if (this.onGround) {
+                velocity.x += this._acceleration.x * this._velocity.x * 0.5;
+            }
         }
         if (this.keys.right) {
           _A.set(0, 1, 0);
           _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * this._acceleration.y);
           _R.multiply(_Q);
+          if (this.onGround) {
             velocity.x -= this._acceleration.x * this._velocity.x * 0.5;
         }
-
-        //face the way skier is moving
+        }
+        
         
     
         controlObject.quaternion.copy(_R);

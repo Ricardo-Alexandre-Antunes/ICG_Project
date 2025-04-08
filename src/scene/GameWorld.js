@@ -128,7 +128,6 @@ export default class GameWorld {
     }
 
     _switchCamera() {
-        console.log("Switching camera");
         this.curCamera = (this.curCamera + 1) % this.allCameras.length;
         this.camera = this.allCameras[this.curCamera];
     }
@@ -168,7 +167,6 @@ export default class GameWorld {
     }
 
     _skierLose() {
-        console.log("You lose");
         this.timeLeft = 30 * 10000;
         this.floor.forEach((floor) => {
             this.sceneGraph.remove(floor.mesh);
@@ -228,7 +226,6 @@ export default class GameWorld {
     render() {
         //check which floor skier is in
         for (let i = 0; i < this.floor.length; i++) {
-            console.log(this.skier.mesh.position.z, this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2);
             if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.sin(-this.floor[i].mesh.rotation.x) / 2) {
                 const pass_gate = this.floor[i].checkSkierScore(this.skier);
                 if (pass_gate == -1) {
@@ -250,12 +247,10 @@ export default class GameWorld {
             this.fps = this.frameCount;
             this.timeLeft -= 1000;
             this.timerDisplay.innerHTML = `Time Left: ${Math.floor(this.timeLeft / 1000)}s`;
-            console.log("time left", this.timeLeft);
             this.frameCount = 0;
             this.lastFrameTime = now;
             this.fpsDisplay.innerHTML = `FPS: ${this.fps}`;
             
-            console.log("fps", this.fps);
 
         }
         this.renderer.render(this.sceneGraph, this.camera);
@@ -278,8 +273,8 @@ export default class GameWorld {
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 2; i++) {
                 const newFloor = new Mountain(lastFloor.size);
-                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 40;
-                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) - 30;
+                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 20;
+                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) - 10;
                 this.sceneGraph.add(newFloor.mesh);
                 this.skier._updateSurface(newFloor.mesh);
                 this.floor.push(newFloor);

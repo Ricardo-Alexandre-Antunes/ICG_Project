@@ -394,7 +394,6 @@ function skierMovement(time) {
 
     // Check for closest plane
     const intersects = raycaster.intersectObjects(relevantPlanes, true);
-    console.log(intersects);
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(skier.mesh.quaternion).normalize();
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(skier.mesh.quaternion).normalize();
     let onGround = true;
@@ -528,15 +527,12 @@ function computeFrame(time) {
     const lastPlanePosition = lastPlane.position;
     // close to ending plane
     // plane height
-    console.log(Math.cos(lastPlane.rotation._x) * lastPlane.geometry.parameters.height);
-    console.log(lastPlane.geometry.parameters.height * Math.sin(lastPlane.rotation._x) / 2);
-    console.log(Number(skierPosition.z), Number(lastPlanePosition.z - Math.sin(lastPlane.rotation._x) * lastPlane.geometry.parameters.height / 2 - 100), Number(skierPosition.z) > Number(lastPlanePosition.z - Math.sin(lastPlane.rotation._x) * lastPlane.size / 2 - 100));
     if (Number(skierPosition.z) > Number(lastPlanePosition.z - Math.sin(lastPlane.rotation._x) * lastPlane.geometry.parameters.height / 2 - 4)) {
         const newMountain1 = new Mountain();
         newMountain1.mesh.position.set(0, lastPlanePosition.y - Math.cos(lastPlane.rotation._x) * lastPlane.geometry.parameters.height / 2 - 2, lastPlanePosition.z -lastPlane.geometry.parameters.height * Math.sin(lastPlane.rotation._x) / 2 );
         relevantPlanes.push(newMountain1.mesh);
         sceneElements.sceneGraph.add(newMountain1.mesh);
-        console.log("new mountain 1", newMountain1.mesh.position);
+    
 
         //remove first plane
         if (relevantPlanes.length > 2) {

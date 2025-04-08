@@ -6,7 +6,7 @@ import Tree from './Tree.js';
 import SpotLightModel from './Spotlight.js';
 
 export default class Mountain {
-    constructor(size = 250, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random()) {
+    constructor(size = 250, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random(), previousMountain = null) {
         this.size = size;
         this.resolution = resolution;
         this.heightScale = heightScale;
@@ -15,17 +15,16 @@ export default class Mountain {
         this.seed = seed;
         this.rocks = rocks;
         this.skiers = [];
-
+        this.previousMountain = previousMountain;  // Store reference to the previous mountain
 
         this.noise = new SimplexNoise(this.seed);
-        this.heightMap = []; // Store the height values for quick lookup
+        this.heightMap = [];
         this.mesh = this.createMountain();
         this.rocks = this.generateRocks();
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
         this.generateGates(-this.size / 2 + 15, 0xff0000);
         this.checkedGates = this.gates.clone().children;
-        //this.generateSpotlight();
         this.mesh.add(this.rocks);
         this.mesh.add(this.generateTrees());
     }
@@ -40,7 +39,16 @@ export default class Mountain {
                 const index = (j * (this.resolution + 1) + i) * 3;
                 const x = (i / this.resolution - 0.5) * this.size;
                 const y = (j / this.resolution - 0.5) * this.size;
-                const height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
+
+                // If this is the first or last row/column, make sure to match previous mountain's end
+                let height;
+                if (this.previousMountain && (i === 0 || i === this.resolution || j === 0 || j === this.resolution)) {
+                    // Matching heights from the previous mountain along the edges
+                    const prevHeight = this.previousMountain.heightAtPoint(x, y);
+                    height = prevHeight;
+                } else {
+                    height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
+                }
 
                 vertices[index + 2] = height;
                 this.heightMap[j][i] = height;
@@ -62,7 +70,6 @@ export default class Mountain {
     }
 
     heightAtPoint(x, y) {
-        // Convert world coordinates to grid indices
         const i = Math.floor((x / this.size + 0.5) * this.resolution);
         const j = Math.floor((y / this.size + 0.5) * this.resolution);
 
@@ -154,23 +161,24 @@ export default class Mountain {
         if (!this.skiers.includes(skier)) {
             this.skiers.push(skier);
         }
+        console.log("skiers", this.skiers);
         // check if skier has passed through next gate from the right side
         // if wrong side take a point away
         if (this.skiers.includes(skier)) {
-            const skierPosition = (skier.mesh.position.z - this.mesh.position.z) / Math.abs(Math.sin(this.mesh.rotation.x));
+            const skierPosition = skier.mesh.position.z * Math.cos(this.mesh.rotation.x);
             const gates = this.checkedGates.sort((gate1, gate2) => {
-                return -gate1.position.y + gate2.position.y;
-            }).filter(gate => -gate.position.y > skierPosition - 10);
+                return gate1.position.z - gate2.position.z;
+            }).filter(gate => gate.position.z > skierPosition - 10);
             if (gates.length == 0) {
                 return;
             }
             console.log("skierPosition", skierPosition);
-            const positions = gates.map(gate => -gate.position.y);
-            const distances = gates.map(gate => Math.abs(-gate.position.y - skierPosition));
+            const positions = gates.map(gate => gate.position.z);
+            const distances = gates.map(gate => Math.abs(gate.position.z - skierPosition));
             console.log("gates", gates);
             console.log("positions", positions);
             console.log("distances", distances);
-            if (-gates[0].position.y < skierPosition && -gates[0].position.y > skierPosition - 1) {
+            if (-gates[0].position.y < skierPosition && -gates[0].position.z > skierPosition - 1) {
                 console.log("gates before", this.checkedGates);
                 this.checkedGates.shift();                
                 console.log("gates after", this.checkedGates);

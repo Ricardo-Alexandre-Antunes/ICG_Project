@@ -78,7 +78,6 @@ export default class Character_Ski {
     }
 
     Update(timeInSeconds) {
-        console.log(this.score);
         // Raycast downwards from the skier to detect the nearest surface
         const downVector = new THREE.Vector3(0, -1, 0);
         downVector.applyQuaternion(this.mesh.quaternion); // Adjust to skier's current rotation
@@ -101,7 +100,6 @@ export default class Character_Ski {
                 this.onGround = false;
             }
             this.mesh.quaternion.slerp(targetQuaternion, 0.2);
-            console.log("compare", hit.point.y + 1.200, this.mesh.position.y);
             this.mesh.position.y = Math.max(hit.point.y + 1.200, this.mesh.position.y - 0.3);
         }
         else {
@@ -111,6 +109,7 @@ export default class Character_Ski {
             gravity.applyQuaternion(this.mesh.quaternion);
             this.mesh.position.add(gravity);
         }
+
         const velocity = this._velocity;
         const frameDecceleration = new THREE.Vector3(
             velocity.x * this._decceleration.x,
@@ -125,6 +124,12 @@ export default class Character_Ski {
             Math.abs(frameDecceleration.z), Math.abs(velocity.z));
 
         velocity.add(frameDecceleration);
+
+        // Apply slight deceleration to forward movement when not pressing the forward key
+        if (!this.keys.forward && this.onGround) {
+            velocity.z -= this._decceleration.z * timeInSeconds;
+            velocity.z = Math.max(velocity.z, 0); // Prevent going backwards
+        }
     
         const controlObject = this.mesh;
         const _Q = new THREE.Quaternion();
@@ -132,35 +137,53 @@ export default class Character_Ski {
         const _R = controlObject.quaternion.clone();
     
         if (this.keys.forward && this.onGround) {
-          velocity.z += this._acceleration.z * timeInSeconds;
-          velocity.z = Math.min(velocity.z, 25 + 0.2 * (Date.now() - this.start) / 100);
+            velocity.z += this._acceleration.z * timeInSeconds;
+            velocity.z = Math.min(velocity.z, 25 + 0.2 * (Date.now() - this.start) / 100);
         }
         if (this.keys.backward && this.onGround) {
-          velocity.z -= this._acceleration.z * timeInSeconds;
+            velocity.z -= this._acceleration.z * timeInSeconds;
             velocity.z = Math.max(velocity.z, 0);
         }
         if (this.keys.left) {
-          _A.set(0, 1, 0);
-          _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * this._acceleration.y);
-          _R.multiply(_Q);
+            _A.set(0, 1, 0);
+            _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * 2); // Faster turn speed
+            _R.multiply(_Q);
             if (this.onGround) {
-                velocity.x += this._acceleration.x * this._velocity.x * 0.5;
+                // Allow sideways movement, regardless of forward speed
+                velocity.x -= this._acceleration.x * 0.5; // Horizontal movement
             }
         }
         if (this.keys.right) {
-          _A.set(0, 1, 0);
-          _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * this._acceleration.y);
-          _R.multiply(_Q);
-          if (this.onGround) {
-            velocity.x -= this._acceleration.x * this._velocity.x * 0.5;
+            _A.set(0, 1, 0);
+            _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * 2); // Faster turn speed
+            _R.multiply(_Q);
+            if (this.onGround) {
+                // Allow sideways movement, regardless of forward speed
+                velocity.x += this._acceleration.x * 0.5; // Horizontal movement
+            }
         }
-        }
-        
-        
     
         controlObject.quaternion.copy(_R);
-    
-    
+
+        // Add skier rotation based on forward velocity and turning
+        const maxRotationAngle = Math.PI / 4; // Max 45 degree rotation
+        const rotationSpeed = Math.min(velocity.z * 0.5, maxRotationAngle); // Skier rotates based on forward velocity
+        
+        // Apply additional rotation to make skier face more in the direction of their movement
+        if (this.keys.left || this.keys.right) {
+            if (this.keys.left) {
+                this.mesh.rotation.y += rotationSpeed / 5; // Turn left
+            }
+            if (this.keys.right) {
+                this.mesh.rotation.y -= rotationSpeed / 5; // Turn right
+            }
+        }
+
+        // Prevent unrealistic tilting (rotate skier until they reach the max limit)
+        if (Math.abs(this.mesh.rotation.x) > maxRotationAngle) {
+            this.mesh.rotation.x = Math.sign(this.mesh.rotation.x) * maxRotationAngle;
+        }
+
         const oldPosition = new THREE.Vector3();
         oldPosition.copy(controlObject.position);
     
@@ -168,19 +191,10 @@ export default class Character_Ski {
         forward.applyQuaternion(controlObject.quaternion);
         forward.normalize();
     
-
         forward.multiplyScalar(velocity.z * timeInSeconds);
-
     
         controlObject.position.add(forward);
-
-        if (intersects.length > 0) {
-            this.mesh.position.x = Math.min(Math.max(this.mesh.position.x, -intersects[0].object.geometry.parameters.width / 2 + 25), intersects[0].object.geometry.parameters.width / 2 - 25);
-        }
-        oldPosition.copy(controlObject.position);   
     }
-    
-
 
 
     accelerate() {

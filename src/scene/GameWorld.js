@@ -273,8 +273,8 @@ export default class GameWorld {
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 2; i++) {
                 const newFloor = new Mountain(lastFloor.size);
-                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 20;
-                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) - 10;
+                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 2;
+                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) + 0.5;
                 this.sceneGraph.add(newFloor.mesh);
                 this.skier._updateSurface(newFloor.mesh);
                 this.floor.push(newFloor);

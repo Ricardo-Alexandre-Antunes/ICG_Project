@@ -165,7 +165,7 @@ export default class Mountain {
         // check if skier has passed through next gate from the right side
         // if wrong side take a point away
         if (this.skiers.includes(skier)) {
-            const skierPosition = skier.mesh.position.z * Math.cos(this.mesh.rotation.x);
+            const skierPosition = (skier.mesh.position.z - this.mesh.position.z) / Math.cos(this.mesh.rotation.x);
             const gates = this.checkedGates.sort((gate1, gate2) => {
                 return gate1.position.z - gate2.position.z;
             }).filter(gate => gate.position.z > skierPosition - 10);
@@ -178,7 +178,8 @@ export default class Mountain {
             console.log("gates", gates);
             console.log("positions", positions);
             console.log("distances", distances);
-            if (-gates[0].position.y < skierPosition && -gates[0].position.z > skierPosition - 1) {
+            if (gates[0].position.z < skierPosition && gates[0].position.z > skierPosition - 1) {
+                skier.lastScoreUpdate = Date.now();
                 console.log("gates before", this.checkedGates);
                 this.checkedGates.shift();                
                 console.log("gates after", this.checkedGates);

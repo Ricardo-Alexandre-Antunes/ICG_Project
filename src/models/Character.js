@@ -18,6 +18,10 @@ export default class Character_Ski {
         this.counter = 0;
         this.onGround = false;
         this.score = 0;
+        this.gravityVelocity = 0; // tracks downward speed when airborne
+        this.sideVelocity = 0;    // smooth horizontal (x-axis) velocity
+
+        this.lastScoreUpdate = Date.now();
         this.createMesh();
 
 

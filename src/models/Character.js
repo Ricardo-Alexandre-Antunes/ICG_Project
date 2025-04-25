@@ -12,14 +12,18 @@ export default class Character_Ski {
             right: false
         };
         this.surface = surface;
-        this._decceleration = new THREE.Vector3(-2.105, 3, -0.6);
-        this._acceleration = new THREE.Vector3(1.5, 2, 50.0);
-        this._velocity = new THREE.Vector3(0, 0, 0);
+        this._decceleration = new THREE.Vector3(-0.105, 3, -0.06);
+        this._acceleration = new THREE.Vector3(1.5, 2, 5.0);
+        this._velocity = new THREE.Vector3(0, 0, 30);
         this.counter = 0;
         this.onGround = false;
         this.score = 0;
         this.gravityVelocity = 0; // tracks downward speed when airborne
         this.sideVelocity = 0;    // smooth horizontal (x-axis) velocity
+        this.turningRight = false;
+        this.turningLeft = false;
+        this.turningRightTime = 0; // time spent turning right
+        this.turningLeftTime = 0;  // time spent turning left
 
         this.lastScoreUpdate = Date.now();
         this.createMesh();
@@ -149,44 +153,61 @@ export default class Character_Ski {
             velocity.z = Math.max(velocity.z, 0);
         }
         if (this.keys.left) {
+            if (this.turningLeft) {
+                if (this.turningLeftTime < 0.1) {
+                    this.turningLeftTime += 0.002;
+                }
+            }
+            this.turningRight = false;
+            this.turningLeft = true;
             _A.set(0, 1, 0);
-            _Q.setFromAxisAngle(_A, Math.PI * timeInSeconds * 2); // Faster turn speed
+            _Q.setFromAxisAngle(_A, 9 * Math.PI * this.turningLeftTime / 10); // Adjust turn speed based on terrain
             _R.multiply(_Q);
             if (this.onGround) {
                 // Allow sideways movement, regardless of forward speed
-                velocity.x -= this._acceleration.x * 0.5; // Horizontal movement
+                velocity.x -= this._acceleration.x * this.turningLeftTime; // Horizontal movement
             }
+        }
+        else {
+            this.turningLeft = false;
+            this.turningLeftTime = Math.max(this.turningLeftTime - 0.02, 0); // Decrease turning time
         }
         if (this.keys.right) {
+            if (this.turningRight) {
+                if (this.turningRightTime < 0.1) {
+                    this.turningRightTime += 0.002;
+                }
+            }
+            this.turningLeft = false;
+            this.turningRight = true;
+
             _A.set(0, 1, 0);
-            _Q.setFromAxisAngle(_A, -Math.PI * timeInSeconds * 2); // Faster turn speed
+            _Q.setFromAxisAngle(_A, 9 * -Math.PI * this.turningRightTime / 10); // Adjust turn speed based on terrain
             _R.multiply(_Q);
+
             if (this.onGround) {
                 // Allow sideways movement, regardless of forward speed
-                velocity.x += this._acceleration.x * 0.5; // Horizontal movement
+                velocity.x += this._acceleration.x * this.turningRightTime; // Horizontal movement
             }
         }
-    
+        else {
+            this.turningRight = false;
+            this.turningRightTime = Math.max(this.turningRightTime - 0.02, 0); // Decrease turning time
+        }
+        if (this.onGround) {
+            const targetRotationY = Math.atan2(this._velocity.x, this._velocity.z); // Align with the movement direction
+            const rotationSpeed = 0.1; // Smoothing factor
+            this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, targetRotationY, rotationSpeed);
+        }
+        
         controlObject.quaternion.copy(_R);
 
         // Add skier rotation based on forward velocity and turning
-        const maxRotationAngle = Math.PI / 4; // Max 45 degree rotation
-        const rotationSpeed = Math.min(velocity.z * 0.5, maxRotationAngle); // Skier rotates based on forward velocity
+        const maxRotationAngle = Math.PI / 4; // Max 90 degree rotation
         
-        // Apply additional rotation to make skier face more in the direction of their movement
-        if (this.keys.left || this.keys.right) {
-            if (this.keys.left) {
-                this.mesh.rotation.y += rotationSpeed / 5; // Turn left
-            }
-            if (this.keys.right) {
-                this.mesh.rotation.y -= rotationSpeed / 5; // Turn right
-            }
-        }
 
-        // Prevent unrealistic tilting (rotate skier until they reach the max limit)
-        if (Math.abs(this.mesh.rotation.x) > maxRotationAngle) {
-            this.mesh.rotation.x = Math.sign(this.mesh.rotation.x) * maxRotationAngle;
-        }
+        
+
 
         const oldPosition = new THREE.Vector3();
         oldPosition.copy(controlObject.position);
@@ -196,6 +217,11 @@ export default class Character_Ski {
         forward.normalize();
     
         forward.multiplyScalar(velocity.z * timeInSeconds);
+
+        if (!this.keys.left && !this.keys.right && this.onGround) {
+
+        }
+        
     
         controlObject.position.add(forward);
     }
@@ -380,16 +406,6 @@ export default class Character_Ski {
         light.shadow.mapSize.height = 1024;
         headbandLight.add(light);
         headbandLight.add(light.target);
-
-        // Add 3rd person camera to headlight
-
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 4000);
-        headbandLight.add(this.camera);
-        this.camera.position.set(0, -160, -70);
-        this.camera.lookAt(0, 0, 0);
-        this.camera.rotation.x = 1.15*Math.PI / 2;
-        this.camera.rotation.z = Math.PI ;
-
 
         this.mesh.add(headbandLight);
 

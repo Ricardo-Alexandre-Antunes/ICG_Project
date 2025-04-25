@@ -15,7 +15,7 @@ export default class GameWorld {
         this.htmlElement = document.querySelector("#MainScene");
         this.previousRAF = null;
         this.start = Date.now();
-        this.timeLeft = 30 * 1000;
+        this.timeLeft = 300 * 1000;
         this._Initialize();
     }
 
@@ -105,6 +105,77 @@ export default class GameWorld {
         this.scoreDisplay.style.width = "80px"; // Give it some width
         this.scoreDisplay.innerHTML = "Score: 0";
 
+        this.speedometerDisplay = document.createElement("div");
+        this.speedometerDisplay.style.position = "absolute";
+        this.speedometerDisplay.style.bottom = "20px";
+        this.speedometerDisplay.style.left = "50%";
+        this.speedometerDisplay.style.transform = "translateX(-50%)";
+        this.speedometerDisplay.style.width = "140px";
+        this.speedometerDisplay.style.height = "140px";
+        this.speedometerDisplay.style.borderRadius = "50%";
+        this.speedometerDisplay.style.background = "radial-gradient(circle at center, #0f0 0%, #030 100%)";
+        this.speedometerDisplay.style.border = "4px solid lime";
+        this.speedometerDisplay.style.boxShadow = "0 0 15px lime";
+        this.speedometerDisplay.style.display = "flex";
+        this.speedometerDisplay.style.alignItems = "center";
+        this.speedometerDisplay.style.justifyContent = "center";
+        this.speedometerDisplay.style.position = "absolute";
+        this.speedometerDisplay.style.zIndex = "1000";
+        this.speedometerDisplay.style.pointerEvents = "none";
+        this.speedometerDisplay.style.overflow = "hidden";
+        document.body.appendChild(this.speedometerDisplay);
+        
+        // needle
+        this.speedNeedle = document.createElement("div");
+        this.speedNeedle.style.width = "4px";
+        this.speedNeedle.style.height = "60px";
+        this.speedNeedle.style.background = "red";
+        this.speedNeedle.style.position = "absolute";
+        this.speedNeedle.style.bottom = "50%";
+        this.speedNeedle.style.left = "50%";
+        this.speedNeedle.style.transformOrigin = "bottom center";
+        this.speedNeedle.style.transform = "rotate(0deg)";
+        this.speedometerDisplay.appendChild(this.speedNeedle);
+        
+        // center dot
+        this.speedCenter = document.createElement("div");
+        this.speedCenter.style.width = "12px";
+        this.speedCenter.style.height = "12px";
+        this.speedCenter.style.background = "black";
+        this.speedCenter.style.border = "2px solid lime";
+        this.speedCenter.style.borderRadius = "50%";
+        this.speedCenter.style.position = "absolute";
+        this.speedCenter.style.left = "calc(50% - 6px)";
+        this.speedCenter.style.bottom = "calc(50% - 6px)";
+        this.speedometerDisplay.appendChild(this.speedCenter);
+        
+        // numeric readout
+        this.speedText = document.createElement("div");
+        this.speedText.style.position = "absolute";
+        this.speedText.style.bottom = "10px";
+        this.speedText.style.left = "50%";
+        this.speedText.style.transform = "translateX(-50%)";
+        this.speedText.style.color = "white";
+        this.speedText.style.fontSize = "14px";
+        this.speedText.style.fontWeight = "bold";
+        this.speedText.innerHTML = "0 km/h";
+        this.speedometerDisplay.appendChild(this.speedText);
+
+        for (let i = 0; i <= 10; i++) {
+            const tick = document.createElement("div");
+            tick.style.position = "absolute";
+            tick.style.width = "2px";
+            tick.style.height = "10px";
+            tick.style.background = "white";
+            const angle = (i / 10) * 270 - 135;
+            tick.style.transform = `rotate(${angle}deg) translateY(-60px)`;
+            tick.style.transformOrigin = "center bottom";
+            tick.style.left = "50%";
+            tick.style.bottom = "50%";
+            this.speedometerDisplay.appendChild(tick);
+        }
+
+
         document.body.appendChild(this.timerDisplay);
         document.body.appendChild(this.fpsDisplay);
         document.body.appendChild(this.scoreDisplay);
@@ -139,10 +210,10 @@ export default class GameWorld {
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(500);
-        const angle = -Math.PI / 2 * mountain.steepness
-        mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle) - 2;
-        mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle) + 0.5;
+        const mountain2 = new Mountain(500, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain);
+        const angle = mountain.mesh.rotation.x;
+        mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
+        mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
         this.sceneGraph.add(mountain2.mesh);
         this.floor.push(mountain2);
 
@@ -180,7 +251,7 @@ export default class GameWorld {
         this.allCameras.forEach((camera) => {
             this.sceneGraph.remove(camera);
         });
-        this.allCameras = [];
+        this.allCameras = [this.camera];
     
 
         //mountain
@@ -189,10 +260,10 @@ export default class GameWorld {
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(500);
-        const angle = -Math.PI / 2 * mountain.steepness
-        mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle) - 2;
-        mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle) + 0.5;
+        const mountain2 = new Mountain(500, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain); // Pass the previous mountain
+        const angle = mountain.mesh.rotation.x;
+        mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
+        mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
         this.sceneGraph.add(mountain2.mesh);
         this.floor.push(mountain2);
 
@@ -229,9 +300,7 @@ export default class GameWorld {
         //check which floor skier is in
         if (Date.now() - this.skier.lastScoreUpdate > 200) {
             for (let i = 0; i < this.floor.length; i++) {
-                console.log("checking mountain ", i);
                 if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.cos(-this.floor[i].mesh.rotation.x) / 2) {
-                    console.log("skier in mountain ", i);
                     const pass_gate = this.floor[i].checkSkierScore(this.skier);
                     if (pass_gate == -1) {
                         this.timeLeft -= 3000;
@@ -260,6 +329,16 @@ export default class GameWorld {
             
 
         }
+
+        const speed = this.skier._velocity ? this.skier._velocity.z : 0;
+        const speedKmH = Math.round(speed * 3.6);
+        this.speedText.innerHTML = `${speedKmH} km/h`;
+
+        // Clamp and map speed to angle (max 100 km/h = 270° rotation)
+        const clampedSpeed = Math.min(speedKmH, 300);
+        const angle = (clampedSpeed / 300) * 270 - 135; // map [0, 100] to [-135°, +135°]
+        this.speedNeedle.style.transform = `rotate(${angle}deg)`;
+
         this.renderer.render(this.sceneGraph, this.camera);
     }
 
@@ -276,18 +355,28 @@ export default class GameWorld {
         //generate more floor if needed
         var lastFloor = this.floor[this.floor.length - 1];
         var detectPoint = this.floor[this.floor.length - 2];
-        const angle = -Math.PI / 2 * lastFloor.steepness
+        const angle = lastFloor.mesh.rotation.x;
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 2; i++) {
-                const newFloor = new Mountain(lastFloor.size);
-                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle) - 2;
-                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle) + 0.5;
+                const newFloor = new Mountain(
+                    lastFloor.size,
+                    50,
+                    10,
+                    0xffffff,
+                    lastFloor.steepness,
+                    Math.random(),
+                    50 * Math.random(),
+                    lastFloor  // 👈 Pass the previous mountain
+                  );
+                  
+                newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle);
+                newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle);
                 this.sceneGraph.add(newFloor.mesh);
                 this.skier._updateSurface(newFloor.mesh);
                 this.floor.push(newFloor);
                 lastFloor = this.floor[this.floor.length - 1];
             }
-            if (this.floor.length > 8) {
+            if (this.floor.length > 4) {
                 this.sceneGraph.remove(this.floor.shift().mesh);
             }
         }

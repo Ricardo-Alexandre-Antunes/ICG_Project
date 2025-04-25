@@ -33,41 +33,97 @@ export default class Mountain {
         const geometry = new THREE.PlaneGeometry(this.size, this.size, this.resolution, this.resolution);
         const vertices = geometry.attributes.position.array;
         this.heightMap = new Array(this.resolution + 1).fill().map(() => new Array(this.resolution + 1).fill(0));
-
+    
+        const position = this.position || new THREE.Vector3(0, 0, 0);
+        const rotation = new THREE.Euler(-Math.PI / 2 * this.steepness, 0, 0);  // Apply rotation based on steepness
+        const transformMatrix = new THREE.Matrix4().compose(
+            position,
+            new THREE.Quaternion().setFromEuler(rotation),
+            new THREE.Vector3(1, 1, 1)
+        );
+    
+        // Only match the edges of the current and previous mountain
+        if (this.previousMountain) {
+            this.heightMap[0] = this.previousMountain.heightMap[this.previousMountain.heightMap.length - 1];
+            // If no previous mountain, generate the height map using noise
+            for (let j = 1; j <= this.resolution; j++) {
+                for (let i = 0; i <= this.resolution; i++) {
+                    const x = (i / this.resolution - 0.5) * this.size;
+                    const y = (j / this.resolution - 0.5) * this.size;
+                    const height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
+                    this.heightMap[j][i] = height;
+                }
+            }
+        } else {
+            // If no previous mountain, generate the height map using noise
+            for (let j = 0; j <= this.resolution; j++) {
+                for (let i = 0; i <= this.resolution; i++) {
+                    const x = (i / this.resolution - 0.5) * this.size;
+                    const y = (j / this.resolution - 0.5) * this.size;
+                    const height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
+                    this.heightMap[j][i] = height;
+                }
+            }
+        }
+    
+        // Smooth the interior heights (to avoid jagged edges between mountains)
+        const smoothed = JSON.parse(JSON.stringify(this.heightMap));
+        for (let j = 1; j < this.resolution; j++) {
+            for (let i = 1; i < this.resolution; i++) {
+                let sum = 0;
+                let count = 0;
+    
+                for (let dj = -1; dj <= 1; dj++) {
+                    for (let di = -1; di <= 1; di++) {
+                        sum += this.heightMap[j + dj][i + di];
+                        count++;
+                    }
+                }
+    
+                smoothed[j][i] = sum / count;
+            }
+        }
+    
+        // Apply smoothed heights to geometry
         for (let j = 0; j <= this.resolution; j++) {
             for (let i = 0; i <= this.resolution; i++) {
                 const index = (j * (this.resolution + 1) + i) * 3;
-                const x = (i / this.resolution - 0.5) * this.size;
-                const y = (j / this.resolution - 0.5) * this.size;
-
-                // If this is the first or last row/column, make sure to match previous mountain's end
-                let height;
-                if (this.previousMountain && (i === 0 || i === this.resolution || j === 0 || j === this.resolution)) {
-                    // Matching heights from the previous mountain along the edges
-                    const prevHeight = this.previousMountain.heightAtPoint(x, y);
-                    height = prevHeight;
-                } else {
-                    height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
-                }
-
-                vertices[index + 2] = height;
-                this.heightMap[j][i] = height;
+                vertices[index + 2] = smoothed[j][i];
             }
         }
-
+    
         geometry.computeVertexNormals();
-
+    
         const texture = new THREE.TextureLoader().load('./src/assets/snow_01_diff_4k.jpg');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(10, 5);
-        const material = new THREE.MeshStandardMaterial({ color: this.color, flatShading: false, map: texture, side: THREE.DoubleSide });
 
+        const material = new THREE.MeshStandardMaterial({
+            color: this.color,
+            flatShading: false,
+            map: texture,
+            side: THREE.DoubleSide,
+            receiveShadow: true
+        });
+
+        const mountaingroup = new THREE.Group();
+        mountaingroup.position.copy(position);
+        mountaingroup.rotation.copy(rotation);
+
+        // Create the basic mountain mesh
         const mountain = new THREE.Mesh(geometry, material);
-        mountain.rotation.x = -Math.PI / 2 * this.steepness;
+        mountaingroup.add(mountain);
 
-        return mountain;
+        return mountaingroup;
+
     }
+    
+    
+    
+    
+    
+    
 
     heightAtPoint(x, y) {
         const i = Math.floor((x / this.size + 0.5) * this.resolution);
@@ -154,14 +210,12 @@ export default class Mountain {
     }
 
     checkSkierScore(skier) {
-        console.log("unchecked gates", this.checkedGates);
         if (this.checkedGates.length == 0) {
             return;
         }
         if (!this.skiers.includes(skier)) {
             this.skiers.push(skier);
         }
-        console.log("skiers", this.skiers);
         // check if skier has passed through next gate from the right side
         // if wrong side take a point away
         if (this.skiers.includes(skier)) {
@@ -172,17 +226,9 @@ export default class Mountain {
             if (gates.length == 0) {
                 return;
             }
-            console.log("skierPosition", skierPosition);
-            const positions = gates.map(gate => gate.position.z);
-            const distances = gates.map(gate => Math.abs(gate.position.z - skierPosition));
-            console.log("gates", gates);
-            console.log("positions", positions);
-            console.log("distances", distances);
             if (gates[0].position.z < skierPosition && gates[0].position.z > skierPosition - 1) {
                 skier.lastScoreUpdate = Date.now();
-                console.log("gates before", this.checkedGates);
                 this.checkedGates.shift();                
-                console.log("gates after", this.checkedGates);
                 if ((gates[0].position.x < 0 && skier.mesh.position.x < gates[0].position.x) || (gates[0].position.x > 0 && skier.mesh.position.x > gates[0].position.x)) {
                     skier.score += 1;
                     return 1;

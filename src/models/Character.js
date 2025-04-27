@@ -13,17 +13,19 @@ export default class Character_Ski {
         };
         this.surface = surface;
         this._decceleration = new THREE.Vector3(-0.105, 3, -0.06);
-        this._acceleration = new THREE.Vector3(1.5, 2, 5.0);
-        this._velocity = new THREE.Vector3(0, 0, 30);
+        this._acceleration = new THREE.Vector3(0, 0, 0);
+        this._velocity = new THREE.Vector3(0, 0, 0);
         this.counter = 0;
         this.onGround = false;
         this.score = 0;
-        this.gravityVelocity = 0; // tracks downward speed when airborne
+        this.gravity = new THREE.Vector3(0, -0.004, 0);
         this.sideVelocity = 0;    // smooth horizontal (x-axis) velocity
         this.turningRight = false;
         this.turningLeft = false;
         this.turningRightTime = 0; // time spent turning right
         this.turningLeftTime = 0;  // time spent turning left
+        this.timeOnAir = 0; // time spent in the air
+        this.curGround = null;
 
         this.lastScoreUpdate = Date.now();
         this.createMesh();
@@ -86,145 +88,218 @@ export default class Character_Ski {
     }
 
     Update(timeInSeconds) {
-        // Raycast downwards from the skier to detect the nearest surface
+        console.log("------------------------")
+        this._acceleration.set(0, 0, 0);
         const downVector = new THREE.Vector3(0, -1, 0);
-        downVector.applyQuaternion(this.mesh.quaternion); // Adjust to skier's current rotation
     
         const raycaster = new THREE.Raycaster(this.mesh.position, downVector);
         const intersects = raycaster.intersectObjects(this.surface, true);
+
+
+        this._acceleration.add(this.gravity);
+
+        // Add air resistance to acceleration in the direction the skier is moving
+        if (this._velocity.lengthSq() > 0) {
+            const airResistanceStrength = 0.0001; // tweak as needed
+            const airResistanceVector = this._velocity.clone().normalize().multiplyScalar(-airResistanceStrength);
+            this._acceleration.add(airResistanceVector);
+            console.log("airResistance", airResistanceVector);
+        }
+
+
+    
         if (intersects.length > 0) {
-            const hit = intersects[0];
-            const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-    
-            const upVector = new THREE.Vector3(0, 1, 0);
-            const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(upVector, worldNormal);
-    
-            // apply gravity until the skier is on the ground
-            if (this.mesh.position.y <= hit.point.y + 2.200) {
-                this.mesh.position.y = hit.point.y + 1.200;
-                this.onGround = true;
-            }
-            else {
-                this.onGround = false;
-            }
-            this.mesh.quaternion.slerp(targetQuaternion, 0.2);
-            this.mesh.position.y = Math.max(hit.point.y + 1.200, this.mesh.position.y - 0.3);
+            this.curGround = intersects[0];
+            this._HandleGroundDetection(intersects[0]);
         }
-        else {
-            // If no surface is detected, apply gravity
+    
+        this._UpdateSteeringAndMovement();
+        console.log("final acceleration", this._acceleration);
+        this._velocity.add(this._acceleration);
+        this.mesh.position.add(this._velocity);
+
+        if (this.mesh.position.x > 100) {
+            this.mesh.position.x = 100;
+        }
+        if (this.mesh.position.x < -100) {
+            this.mesh.position.x = -100;
+        }
+    }
+    
+    
+    
+    _HandleGroundDetection(hit) {
+        const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+        const upVector = new THREE.Vector3(0, 1, 0);
+    
+        if (this.mesh.position.y <= hit.point.y + 1.7) {
+            this.onGround = true;
+            // Get velocity relative to the ground
+            const relativeVelocity = this._velocity.clone().sub(worldNormal.clone().multiplyScalar(this._velocity.dot(worldNormal)));
+            console.log("relativeVelocity", relativeVelocity);
+            
+
+            const friction = this._velocity.clone().multiplyScalar(-0.005);
+            this._acceleration.add(friction);
+
+            // apply a force in the direction of the ground normal
+            // Calculate the acceleration along the ground normal
+            const accAlongNormal = worldNormal.clone().multiplyScalar(this._acceleration.dot(worldNormal));
+
+            // Calculate the acceleration that causes sliding (gravity down the slope)
+            const slidingForce = accAlongNormal.clone().negate();
+            console.log("normalForce", slidingForce);
+            this._acceleration.add(slidingForce);
+            const velocity = this._velocity.clone();
+            const velocityAlongGround = velocity.clone().sub(worldNormal.clone().multiplyScalar(velocity.dot(worldNormal)));
+            if (Math.abs(velocityAlongGround.z) < 1) {
+                // Add a push in the forward direction
+                const forward = new THREE.Vector3(0, 0, 0.002);
+                forward.applyQuaternion(this.mesh.quaternion);
+        
+                // Project the input force onto the ground plane
+                const pushAlongGround = forward.clone().sub(worldNormal.clone().multiplyScalar(forward.dot(worldNormal)));
+        
+                console.log("forward projected onto ground", pushAlongGround);
+                this._acceleration.add(pushAlongGround);
+            }
+
+            this.mesh.rotation.x = Math.atan2(worldNormal.y, Math.sqrt(worldNormal.x ** 2 + worldNormal.z ** 2));
+            this.mesh.rotation.z = 0;
+            
+            this.mesh.position.y = hit.point.y + 2.7; // Adjust the height of the skier
+            
+            
+        } else {
             this.onGround = false;
-            const gravity = new THREE.Vector3(0, -0.3, 0);
-            gravity.applyQuaternion(this.mesh.quaternion);
-            this.mesh.position.add(gravity);
-        }
-
-        const velocity = this._velocity;
-        const frameDecceleration = new THREE.Vector3(
-            velocity.x * this._decceleration.x,
-            velocity.y * this._decceleration.y,
-            velocity.z * this._decceleration.z
-        );
-        if (isNaN(timeInSeconds)) {
-            return;
-        }
-        frameDecceleration.multiplyScalar(timeInSeconds);
-        frameDecceleration.z = Math.sign(frameDecceleration.z) * Math.min(
-            Math.abs(frameDecceleration.z), Math.abs(velocity.z));
-
-        velocity.add(frameDecceleration);
-
-        // Apply slight deceleration to forward movement when not pressing the forward key
-        if (!this.keys.forward && this.onGround) {
-            velocity.z -= this._decceleration.z * timeInSeconds;
-            velocity.z = Math.max(velocity.z, 0); // Prevent going backwards
+            this.timeOnAir += 0.01;
         }
     
+    }
+
+    _UpdateSteeringAndMovement() {
+        
+        const velocity = this._velocity;
         const controlObject = this.mesh;
         const _Q = new THREE.Quaternion();
         const _A = new THREE.Vector3();
         const _R = controlObject.quaternion.clone();
     
-        if (this.keys.forward && this.onGround) {
-            velocity.z += this._acceleration.z * timeInSeconds;
-            velocity.z = Math.min(velocity.z, 25 + 0.2 * (Date.now() - this.start) / 100);
+        if (this.onGround) {
+            this._HandleGroundMovement(velocity, _R, _Q, _A);
+            controlObject.quaternion.copy(_R);
+    
+            const forward = new THREE.Vector3(0, 0, 1);
+            forward.applyQuaternion(controlObject.quaternion);
+            forward.normalize();
+        
+            const right = new THREE.Vector3(1, 0, 0);
+            right.applyQuaternion(controlObject.quaternion);
+            right.normalize();
+        
+            forward.multiplyScalar(0);
+            right.multiplyScalar(this.sideVelocity);
+        
+            const moveVector = new THREE.Vector3();
+            moveVector.add(forward);
+            moveVector.add(right);
+            
+            
+        
+            controlObject.position.add(moveVector);
+        } else {
+            this._HandleAirMovement(velocity, _R, _Q, _A);
         }
-        if (this.keys.backward && this.onGround) {
-            velocity.z -= this._acceleration.z * timeInSeconds;
-            velocity.z = Math.max(velocity.z, 0);
+        
+    
+        
+    }
+    
+    _HandleGroundMovement(velocity, _R, _Q, _A) {
+        const worldNormal = this.curGround.face.normal.clone().transformDirection(this.curGround.object.matrixWorld);
+        if (this.keys.forward) {
+            const velocity = this._velocity.clone();
+            const velocityAlongGround = velocity.clone().sub(worldNormal.clone().multiplyScalar(velocity.dot(worldNormal)));
+            console.log("velocityAlongGround", velocityAlongGround);
+            console.log("velocityAlongGroundTrue", velocity);
+            if (Math.abs(velocityAlongGround.z) < 0.1) {
+                // Add a push in the forward direction
+                const forward = new THREE.Vector3(0, 0, 0.001);
+                forward.applyQuaternion(this.mesh.quaternion);
+        
+                // Project the input force onto the ground plane
+                const pushAlongGround = forward.clone().sub(worldNormal.clone().multiplyScalar(forward.dot(worldNormal)));
+        
+                console.log("forward projected onto ground", pushAlongGround);
+                this._acceleration.add(pushAlongGround);
+            } else {
+                // Amplify the current acceleration
+                console.log("amplify acceleration");
+                console.log("acceleration", this._acceleration);
+                this._acceleration.add(this._acceleration.clone().multiplyScalar(2));
+            }
         }
+        
+        if (this.keys.backward) {
+            // Subtract a push in the backward direction
+            const backward = this._velocity.clone().multiplyScalar(-0.02);
+            this._acceleration.add(backward);
+            
+        }
+    
         if (this.keys.left) {
             if (this.turningLeft) {
-                if (this.turningLeftTime < 0.1) {
-                    this.turningLeftTime += 0.002;
+                if (this.turningLeftTime < 1.0) {
+                    this.turningLeftTime += 0.02;
                 }
             }
             this.turningRight = false;
             this.turningLeft = true;
             _A.set(0, 1, 0);
-            _Q.setFromAxisAngle(_A, 9 * Math.PI * this.turningLeftTime / 10); // Adjust turn speed based on terrain
+            _Q.setFromAxisAngle(_A, 0.05);
             _R.multiply(_Q);
-            if (this.onGround) {
-                // Allow sideways movement, regardless of forward speed
-                velocity.x -= this._acceleration.x * this.turningLeftTime; // Horizontal movement
-            }
-        }
-        else {
+    
+        } else {
             this.turningLeft = false;
-            this.turningLeftTime = Math.max(this.turningLeftTime - 0.02, 0); // Decrease turning time
+            this.turningLeftTime = Math.max(this.turningLeftTime - 0.02, 0);
         }
+    
         if (this.keys.right) {
             if (this.turningRight) {
-                if (this.turningRightTime < 0.1) {
-                    this.turningRightTime += 0.002;
+                if (this.turningRightTime < 1.0) {
+                    this.turningRightTime += 0.02;
                 }
             }
             this.turningLeft = false;
             this.turningRight = true;
-
             _A.set(0, 1, 0);
-            _Q.setFromAxisAngle(_A, 9 * -Math.PI * this.turningRightTime / 10); // Adjust turn speed based on terrain
+            _Q.setFromAxisAngle(_A, -0.05);
             _R.multiply(_Q);
-
-            if (this.onGround) {
-                // Allow sideways movement, regardless of forward speed
-                velocity.x += this._acceleration.x * this.turningRightTime; // Horizontal movement
-            }
-        }
-        else {
+    
+        } else {
             this.turningRight = false;
-            this.turningRightTime = Math.max(this.turningRightTime - 0.02, 0); // Decrease turning time
+            this.turningRightTime = Math.max(this.turningRightTime - 0.02, 0);
         }
-        if (this.onGround) {
-            const targetRotationY = Math.atan2(this._velocity.x, this._velocity.z); // Align with the movement direction
-            const rotationSpeed = 0.1; // Smoothing factor
-            this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, targetRotationY, rotationSpeed);
-        }
-        
-        controlObject.quaternion.copy(_R);
-
-        // Add skier rotation based on forward velocity and turning
-        const maxRotationAngle = Math.PI / 4; // Max 90 degree rotation
-        
-
-        
-
-
-        const oldPosition = new THREE.Vector3();
-        oldPosition.copy(controlObject.position);
-    
-        const forward = new THREE.Vector3(0, 0, 1);
-        forward.applyQuaternion(controlObject.quaternion);
-        forward.normalize();
-    
-        forward.multiplyScalar(velocity.z * timeInSeconds);
-
-        if (!this.keys.left && !this.keys.right && this.onGround) {
-
-        }
-        
-    
-        controlObject.position.add(forward);
     }
+    
+    
+    _HandleAirMovement(velocity, _R, _Q, _A) {
+    
+        if (this.keys.left) {
+            this.mesh.rotation.y += 0.05;
+        }
+        if (this.keys.right) {
+            this.mesh.rotation.y -= 0.05;
+        }
+        if (this.keys.forward) {
+            this.mesh.rotation.x -= 0.05;
+        }
+        if (this.keys.backward) {
+            this.mesh.rotation.x += 0.05;
+        }
+    }
+    
+
 
 
     accelerate() {

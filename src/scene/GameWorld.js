@@ -199,18 +199,19 @@ export default class GameWorld {
     }
 
     _switchCamera() {
+        console.log("Switching camera");
         this.curCamera = (this.curCamera + 1) % this.allCameras.length;
         this.camera = this.allCameras[this.curCamera];
     }
 
     _addObjects() {
         //mountain
-        const mountain = new Mountain(500);
+        const mountain = new Mountain(250);
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(500, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain);
+        const mountain2 = new Mountain(250, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain);
         const angle = mountain.mesh.rotation.x;
         mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
         mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
@@ -255,12 +256,12 @@ export default class GameWorld {
     
 
         //mountain
-        const mountain = new Mountain(500);
+        const mountain = new Mountain(250);
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(500, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain); // Pass the previous mountain
+        const mountain2 = new Mountain(250, 50, 10, 0xffffff, mountain.steepness, Math.random(), 15 * Math.random(), mountain); // Pass the previous mountain
         const angle = mountain.mesh.rotation.x;
         mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
         mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
@@ -357,7 +358,7 @@ export default class GameWorld {
         var detectPoint = this.floor[this.floor.length - 2];
         const angle = lastFloor.mesh.rotation.x;
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
-            for (let i = 0; i < 2; i++) {
+            for (let i = 0; i < 4; i++) {
                 const newFloor = new Mountain(
                     lastFloor.size,
                     50,
@@ -365,7 +366,7 @@ export default class GameWorld {
                     0xffffff,
                     lastFloor.steepness,
                     Math.random(),
-                    50 * Math.random(),
+                    15 * Math.random(),
                     lastFloor  // 👈 Pass the previous mountain
                   );
                   
@@ -376,7 +377,7 @@ export default class GameWorld {
                 this.floor.push(newFloor);
                 lastFloor = this.floor[this.floor.length - 1];
             }
-            if (this.floor.length > 4) {
+            if (this.floor.length > 6) {
                 this.sceneGraph.remove(this.floor.shift().mesh);
             }
         }

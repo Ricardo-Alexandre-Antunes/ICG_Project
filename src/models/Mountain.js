@@ -25,9 +25,9 @@ export default class Mountain {
         this.heightMap = [];
         this.mesh = this.createMountain();
         this.rocks = this.generateRocks();
-        this.rocks.raycast = function(raycaster, intersects) {
-            return false;
-        }
+        //this.rocks.raycast = function(raycaster, intersects) {
+        //    return false;
+        //}
         const now = Date.now();
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);

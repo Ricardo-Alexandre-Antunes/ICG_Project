@@ -8,7 +8,7 @@ export default class SlalomGate {
         leftPole.position.set(-0.6, 1, 0); // Adjust height so the bottom touches the ground
 
         // Pole material
-        const poleMaterial = new THREE.MeshStandardMaterial({ color: color });
+        const poleMaterial = new THREE.MeshStandardMaterial({ color: color, emissive: color });
 
         // Create left pole
         const leftPoleStick = new THREE.Mesh(

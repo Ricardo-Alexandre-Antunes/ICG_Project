@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 import SimplexNoise from 'https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/+esm';
+import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.min.js';
 import Rock from './Rock.js';
 import SlalomGate from './SlalomGate.js';
 import Tree from './Tree.js';
 import SpotLightModel from './Spotlight.js';
+import { snowTexture } from './Textures.js';
 
 export default class Mountain {
-    constructor(size = 250, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 50 * Math.random(), previousMountain = null) {
+    constructor(size = 250, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 15 * Math.random(), previousMountain = null) {
+        const startGenerating = Date.now();
+        console.log("Generating mountain...");
         this.size = size;
         this.resolution = resolution;
         this.heightScale = heightScale;
@@ -21,12 +25,18 @@ export default class Mountain {
         this.heightMap = [];
         this.mesh = this.createMountain();
         this.rocks = this.generateRocks();
+        //this.rocks.raycast = function(raycaster, intersects) {
+        //    return false;
+        //}
+        const now = Date.now();
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
         this.generateGates(-this.size / 2 + 15, 0xff0000);
+        console.log("Gates generated in " + (Date.now() - now) + "ms");
         this.checkedGates = this.gates.clone().children;
         this.mesh.add(this.rocks);
         this.mesh.add(this.generateTrees());
+        console.log("Mountain generated in " + (Date.now() - startGenerating) + "ms");
     }
 
     createMountain() {
@@ -50,8 +60,11 @@ export default class Mountain {
                 for (let i = 0; i <= this.resolution; i++) {
                     const x = (i / this.resolution - 0.5) * this.size;
                     const y = (j / this.resolution - 0.5) * this.size;
-                    const height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
-                    this.heightMap[j][i] = height;
+                    let baseHeight = this.noise.noise2D(x * 0.001, y * 0.001) * this.heightScale;
+                    const previousHeight = this.heightMap[j - 1][i];
+                    const smoothFactor = 0.7; // 0.0 = noisy, 1.0 = very smooth
+                    baseHeight = THREE.MathUtils.lerp(baseHeight, previousHeight, smoothFactor);
+                    this.heightMap[j][i] = baseHeight;
                 }
             }
         } else {
@@ -60,7 +73,7 @@ export default class Mountain {
                 for (let i = 0; i <= this.resolution; i++) {
                     const x = (i / this.resolution - 0.5) * this.size;
                     const y = (j / this.resolution - 0.5) * this.size;
-                    const height = this.noise.noise2D(x * 0.002, y * 0.002) * this.heightScale;
+                    const height = this.noise.noise2D(x * 0.001, y * 0.001) * this.heightScale;
                     this.heightMap[j][i] = height;
                 }
             }
@@ -94,18 +107,15 @@ export default class Mountain {
     
         geometry.computeVertexNormals();
     
-        const texture = new THREE.TextureLoader().load('./src/assets/snow_01_diff_4k.jpg');
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(10, 5);
+        const texture = snowTexture;
 
         const material = new THREE.MeshStandardMaterial({
             color: this.color,
             flatShading: false,
             map: texture,
-            side: THREE.DoubleSide,
-            receiveShadow: true
+            side: THREE.DoubleSide
         });
+
 
         const mountaingroup = new THREE.Group();
         mountaingroup.position.copy(position);
@@ -137,19 +147,38 @@ export default class Mountain {
     }
 
     generateRocks() {
-        const rocks = new THREE.Group();
-        const sharedRock = new Rock().mesh;
-        for (let i = 0; i < this.rocks; i++) {
-            const rock = sharedRock.clone();
-            rock.position.x = Math.random() * this.size - this.size / 2;
-            rock.position.z = Math.random() * this.size - this.size / 2;
-            rock.position.y = this.heightAtPoint(rock.position.x, rock.position.z);
-            rock.scale.setScalar(Math.random() * 1.5 * (this.size/250) + 2.5);
-            rocks.add(rock);
+        console.log("Generating rocks...");
+        const now = Date.now();
+        const sharedRock = new Rock().mesh; // Single mesh, good
+        const geometry = sharedRock.geometry.clone();
+        const material = sharedRock.material.clone();
+    
+        const rockCount = this.rocks;
+        const instancedMesh = new THREE.InstancedMesh(geometry, material, rockCount);
+    
+        const dummy = new THREE.Object3D();
+    
+        for (let i = 0; i < rockCount; i++) {
+            const x = Math.random() * this.size - this.size / 2;
+            const z = Math.random() * this.size - this.size / 2;
+            const y = this.heightAtPoint(x, z);
+    
+            dummy.position.set(x, y, z);
+            dummy.rotation.y = Math.random() * Math.PI * 2;
+            dummy.scale.setScalar(Math.random() * 1.5 * (this.size / 250) + 2.5);
+            dummy.updateMatrix();
+    
+            instancedMesh.setMatrixAt(i, dummy.matrix);
         }
-        rocks.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
-        return rocks;
+    
+        instancedMesh.instanceMatrix.needsUpdate = true;
+    
+        // Rotate entire rock field to match terrain steepness
+        instancedMesh.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
+        console.log("Rocks generated in " + (Date.now() - now) + "ms");
+        return instancedMesh;
     }
+    
 
     generateGates(z_pos, color) {
         if (z_pos > this.size / 2 - 10) {
@@ -163,14 +192,14 @@ export default class Mountain {
         switch (color) {
             case 0xff0000:
                 // left / red gates
-                gate.group.position.set(x_pos, this.heightAtPoint(1, z_pos), z_pos);
+                gate.group.position.set(x_pos, this.heightAtPoint(x_pos, z_pos), z_pos);
                 gate.group.scale.setScalar(1.2);
                 this.gates.add(gate.group);
                 color = 0x0000ff;
                 break;
             case 0x0000ff:
                 // right / blue gates
-                gate.group.position.set(-x_pos, this.heightAtPoint(-1, z_pos), z_pos);
+                gate.group.position.set(-x_pos, this.heightAtPoint(-x_pos, z_pos), z_pos);
                 gate.group.scale.setScalar(1.2);
                 this.gates.add(gate.group);
                 color = 0xff0000;
@@ -181,23 +210,13 @@ export default class Mountain {
         this.generateGates(z_pos, color);
     }
 
+   
     generateTrees() {
-        // generate a bunch of trees at the side of the mountain
-        const trees = new THREE.Group();
-        const sharedTree = new Tree().mesh;
-        for (let i = 0; i < 100; i++) {
-            const tree = sharedTree.clone();
-            tree.position.x = Math.sign(Math.random() - 0.5) * (this.size / 2 - Math.random() * 20);
-            tree.position.z = Math.random() * this.size - this.size / 2;
-            tree.position.y = this.heightAtPoint(tree.position.x, tree.position.z);
-            //tree.rotation.x = Math.PI;
-            tree.scale.setScalar(Math.random() * 0.5 + 0.3);
-            trees.add(tree);
-        }
-        trees.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
-        return trees;
-
+        return Tree.generateForest(this.size, this.size * 0.2, this.heightAtPoint.bind(this), this.steepness);
     }
+    
+    
+    
 
     generateSpotlight() {
         for (let i = 0; i < 3; i++) {

@@ -206,7 +206,7 @@ export default class Mountain {
                 break;
         }
 
-        z_pos = z_pos + Math.random() * 10 + 40;
+        z_pos = z_pos + Math.random() * 10 + 120;
         this.generateGates(z_pos, color);
     }
 

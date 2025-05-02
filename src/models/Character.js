@@ -14,11 +14,11 @@ export default class Character_Ski {
         this.surface = surface;
         this._decceleration = new THREE.Vector3(-0.105, 3, -0.06);
         this._acceleration = new THREE.Vector3(0, 0, 0);
-        this._velocity = new THREE.Vector3(0, 0, 50);
+        this._velocity = new THREE.Vector3(0, 0, 0);
         this.counter = 0;
         this.onGround = false;
         this.score = 0;
-        this.gravity = new THREE.Vector3(0, -15, 0);
+        this.gravity = new THREE.Vector3(0, -25, 0);
         this.sideVelocity = 0;    // smooth horizontal (x-axis) velocity
         this.turningRight = false;
         this.turningLeft = false;
@@ -70,8 +70,7 @@ export default class Character_Ski {
         const forward = this._velocity.clone().normalize().multiplyScalar(2);
         const origin = new THREE.Vector3(0, -3, 0).sub(forward);
         origin.y -= 6.5;
-        origin.z -= 2;
-        console.log("particles", this.snowParticles);
+        origin.z -= 3.3;
         for (let i = 0; i < this.snowParticles.length; i++) {
             const p = this.snowParticles[i];
             if (!p.visible) {
@@ -82,7 +81,7 @@ export default class Character_Ski {
                     (Math.random() - 1.5) * this._velocity.lengthSq() / 1000
                 );
                 p.life = 0.5;
-                p.material.opacity = this._velocity.lengthSq();
+                p.material.opacity = this._velocity.lengthSq() / 1000;
                 p.visible = true;
                 break;
             }
@@ -180,8 +179,8 @@ export default class Character_Ski {
         if (this._velocity.lengthSq() > 0) {
             const airResistanceStrength = 10;
             const airResistanceVector = this._velocity.clone().normalize().multiplyScalar(-airResistanceStrength);
-            console.log("gravity", this.gravity);
-            console.log("airResistanceVector", airResistanceVector);
+            //console.log("gravity", this.gravity);
+            //console.log("airResistanceVector", airResistanceVector);
             this._acceleration.add(airResistanceVector);
         }
     
@@ -193,8 +192,8 @@ export default class Character_Ski {
         this._UpdateSteeringAndMovement(timeInSeconds);
     
         // Apply physics using delta time
-        console.log("acceleration disregard fps", this._acceleration);
-        console.log("acceleration", this._acceleration.clone().multiplyScalar(timeInSeconds));
+        //console.log("acceleration disregard fps", this._acceleration);
+        //console.log("acceleration", this._acceleration.clone().multiplyScalar(timeInSeconds));
         this._velocity.add(this._acceleration.clone().multiplyScalar(timeInSeconds));
         this.mesh.position.add(this._velocity.clone().multiplyScalar(timeInSeconds));
     
@@ -217,13 +216,13 @@ export default class Character_Ski {
         const upVector = new THREE.Vector3(0, 1, 0);
     
         const groundHeight = hit.point.y;
-        const skierHeightOffset = 2.2; // adjust for your skier's "foot" height
+        const skierHeightOffset = 1.5; // adjust for your skier's "foot" height
     
         const currentY = this.mesh.position.y;
         const verticalVelocity = this._velocity.y;
     
         // Consider a small margin of tolerance based on velocity and deltaTime
-        const margin = Math.max(0.1, Math.abs(verticalVelocity * deltaTime));
+        const margin = Math.max(0.01, Math.abs(verticalVelocity * deltaTime));
     
         if (currentY <= groundHeight + skierHeightOffset + margin) {
             // Snap above ground
@@ -238,7 +237,7 @@ export default class Character_Ski {
             this._velocity.copy(tangentialVelocity); // remove vertical bounce (can tweak if desired)
     
             // Add friction (dampen velocity)
-            const friction = tangentialVelocity.clone().multiplyScalar(-0.3 * deltaTime); // stronger if needed
+            const friction = tangentialVelocity.clone().multiplyScalar(-5 * deltaTime); // stronger if needed
             this._acceleration.add(friction);
     
             // Apply slide force down the slope
@@ -252,9 +251,31 @@ export default class Character_Ski {
             this._acceleration.add(push.multiplyScalar(1.0)); // scale as needed
     
             // Optional: tilt the mesh to match terrain slope
-            const slopeAngleX = Math.atan2(worldNormal.y, Math.sqrt(worldNormal.x ** 2 + worldNormal.z ** 2));
-            this.mesh.rotation.x = slopeAngleX;
-            this.mesh.rotation.z = 0;
+            // Align skier to terrain slope without flipping forward direction
+            const slopeNormal = worldNormal.clone().normalize();
+            const currentForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion);
+
+            // Project forward vector onto slope plane
+            const forwardOnSlope = currentForward.clone().sub(
+            slopeNormal.clone().multiplyScalar(currentForward.dot(slopeNormal))
+            ).normalize();
+
+            // If projection failed (too flat), bail out to avoid NaNs
+            if (forwardOnSlope.lengthSq() < 1e-6) return;
+
+            // Rebuild orthonormal basis: right, up, forward
+            const right = new THREE.Vector3().crossVectors(slopeNormal, forwardOnSlope).normalize();
+            const adjustedForward = new THREE.Vector3().crossVectors(right, slopeNormal).normalize();
+
+            // Create matrix and convert to quaternion
+            const basisMatrix = new THREE.Matrix4().makeBasis(right, slopeNormal, adjustedForward);
+            const targetQuat = new THREE.Quaternion().setFromRotationMatrix(basisMatrix);
+
+            // Smooth orientation to prevent jitter
+            this.mesh.quaternion.slerp(targetQuat, 0.15);
+
+
+
     
         } else {
             // Not on ground
@@ -303,6 +324,7 @@ export default class Character_Ski {
     _HandleGroundMovement(velocity, _R, _Q, _A) {
         const worldNormal = this.curGround.face.normal.clone().transformDirection(this.curGround.object.matrixWorld);
         if (this.keys.forward) {
+            this.accelerate();
             const velocity = this._velocity.clone();
             const velocityAlongGround = velocity.clone().sub(worldNormal.clone().multiplyScalar(velocity.dot(worldNormal)));
             //console.log("velocityAlongGround", velocityAlongGround);
@@ -314,7 +336,7 @@ export default class Character_Ski {
         
                 // Project the input force onto the ground plane
                 const pushAlongGround = forward.clone().sub(worldNormal.clone().multiplyScalar(forward.dot(worldNormal)));
-                console.log("pushAlongGround", pushAlongGround);
+                //console.log("pushAlongGround", pushAlongGround);
         
                 //console.log("forward projected onto ground", pushAlongGround);
                 this._acceleration.add(pushAlongGround);
@@ -324,6 +346,9 @@ export default class Character_Ski {
                 //console.log("acceleration", this._acceleration);
                 this._acceleration.add(this._acceleration.clone().multiplyScalar(2));
             }
+        }
+        else {
+            this.normalStance();
         }
         
         if (this.keys.backward) {
@@ -389,118 +414,199 @@ export default class Character_Ski {
 
 
     accelerate() {
-        // Body leans forward
-        this.mesh.rotation.x = -0.1;
-        
-        // Hands rotate backwards with ski poles
-        this.mesh.children[4].rotation.x = 0.3;
-        this.mesh.children[5].rotation.x = 0.3;
+        // Skier mesh
+        const skierMesh = this.mesh.children[0];
+    
+        // === LEGS ===
+        const rightLeg = skierMesh.children[2];
+        const leftLeg = skierMesh.children[3];
 
-        // Legs rotate backwards
-        this.mesh.children[6].rotation.x = 0.3;
-        this.mesh.children[7].rotation.x = 0.3;
+    
+        // Scale and position updates (not interpolated here — update separately if needed)
+        rightLeg.scale.set(1, 0.9, 1);
+        leftLeg.scale.set(1, 0.9, 1);
+        rightLeg.position.y = -6;
+        leftLeg.position.y = -6;
+
+        // === BODY ===
+        const body = skierMesh.children[0];
+
+        const bodyRotation = new THREE.Euler(Math.PI / 8, 0, 0);
+        const bodyQuat = new THREE.Quaternion().setFromEuler(bodyRotation);
+        body.quaternion.slerp(bodyQuat, 0.1);
+
+        body.position.y = -1;
+        body.position.z = 1;
+
+        // === HEAD ===
+        const head = skierMesh.children[1];
+        head.position.y = 6;
+        head.position.z = 4;
+    
+        // === ARMS (Hands + Poles) ===
+        const rightPole = this.mesh.children[2];
+        const leftPole = this.mesh.children[3];
+    
+        const targetPoleRotation = new THREE.Euler(Math.PI / 2, 0, 0);
+        const targetPoleQuat = new THREE.Quaternion().setFromEuler(targetPoleRotation);
+    
+        rightPole.quaternion.slerp(targetPoleQuat, 0.1);
+        leftPole.quaternion.slerp(targetPoleQuat, 0.1);
+
+        rightPole.position.y = -3;
+        leftPole.position.y = -3;
+        rightPole.position.z = -3;
+        leftPole.position.z = -3;
     }
-
+    
+    
     normalStance() {
-        // Body upright
-        this.mesh.rotation.x = 0;
-        
-        // Hands rotate forwards
-        this.mesh.children[4].rotation.x = 0;
-        this.mesh.children[5].rotation.x = 0;
+        // Reset to normal stance
+        // Skier mesh
 
-        // Legs rotate forwards
-        this.mesh.children[6].rotation.x = 0;
-        this.mesh.children[7].rotation.x = 0;
+        const skierMesh = this.mesh.children[0];
+        console.log(skierMesh);
+    
+        // === LEGS ===
+        const rightLeg = skierMesh.children[2];
+        const leftLeg = skierMesh.children[3];
+
+    
+        // Scale and position updates (not interpolated here — update separately if needed)
+        rightLeg.scale.set(1, 1, 1);
+        leftLeg.scale.set(1, 1, 1);
+        rightLeg.position.y = -6;
+        leftLeg.position.y = -6;
+
+        // === BODY ===
+        const body = skierMesh.children[0];
+
+        const bodyRotation = new THREE.Euler(0, 0, 0);
+        const bodyQuat = new THREE.Quaternion().setFromEuler(bodyRotation);
+        body.quaternion.slerp(bodyQuat, 0.1);
+
+        body.position.y = 0;
+        body.position.z = 0;
+
+        // === HEAD ===
+        const head = skierMesh.children[1];
+        head.position.y = 8;
+        head.position.z = 0;
+    
+        // === ARMS (Hands + Poles) ===
+        const rightPole = this.mesh.children[2];
+        const leftPole = this.mesh.children[3];
+    
+        const targetPoleRotation = new THREE.Euler(0, 0, 0);
+        const targetPoleQuat = new THREE.Quaternion().setFromEuler(targetPoleRotation);
+    
+        rightPole.quaternion.slerp(targetPoleQuat, 0.1);
+        leftPole.quaternion.slerp(targetPoleQuat, 0.1);
+
+
+        rightPole.position.y = -5;
+        leftPole.position.y = -5;
+        rightPole.position.z = 0;
+        leftPole.position.z = 0;
     }
-
+    
     turnLeft() {
-        // Body leans left
-        this.mesh.rotation.z = 0.1;
-
+        // Rotate the visual components
+        // Body leans left (keep mesh body rotation as is, just rotate visual parts)
+        this.mesh.children[0].rotation.z = 0.1;
+    
         // Arms lean left
         this.mesh.children[4].rotation.z = 0.3;
         this.mesh.children[5].rotation.z = 0.3;
-
+    
         // Skis rotate left
         this.mesh.children[8].rotation.z = 0.3;
         this.mesh.children[9].rotation.z = 0.3;
     }
-
+    
     turnRight() {
-        // Body leans right
-        this.mesh.rotation.z = -0.1;
-
+        // Rotate the visual components
+        // Body leans right (keep mesh body rotation as is, just rotate visual parts)
+        this.mesh.children[0].rotation.z = -0.1;
+    
         // Arms lean right
         this.mesh.children[4].rotation.z = -0.3;
         this.mesh.children[5].rotation.z = -0.3;
-
+    
         // Skis rotate right
         this.mesh.children[8].rotation.z = -0.3;
         this.mesh.children[9].rotation.z = -0.3;
     }
+    
 
 
     createMesh() {
-        this.mesh = new THREE.Mesh();
-
-        //AxesHelper
+        // Main skier mesh for position and movement
+        this.mesh = new THREE.Group(); // World position & movement
+    
+        // Visual group that holds the body parts for animation poses
+        this.visualGroup = new THREE.Group(); // Holds animated limbs, head, etc.
+        this.mesh.add(this.visualGroup); // Add visualGroup to the mesh
+    
+        // Axes Helper (for debugging)
         this.mesh.add(new THREE.AxesHelper(10));
-        
-
+    
         // Create the body
         var bodyGeom = new THREE.CylinderGeometry(3.5, 3, 10, 4, 1);
         var bodyMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
         var body = new THREE.Mesh(bodyGeom, bodyMat);
+        body.name = "body";
         body.position.set(0, 0, 0);
-        this.mesh.add(body);
-
+        this.visualGroup.add(body); // Add to visual group
+    
         // Create the head
         var headGeom = new THREE.SphereGeometry(3, 32, 32);
         var headMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
         var head = new THREE.Mesh(headGeom, headMat);
+        head.name = "head";
         head.position.set(0, 8, 0);
-        this.mesh.add(head);
-
+        this.visualGroup.add(head);
+    
         // Create the eyes
         var eyeGeom = new THREE.SphereGeometry(0.5, 32, 32);
         var eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
         var eyeR = new THREE.Mesh(eyeGeom, eyeMat);
-        eyeR.position.set(1.7, 8.3, 2.5);
+        eyeR.position.set(1.7, 0.3, 2.5);
         var eyeL = eyeR.clone();
         eyeL.position.x = -eyeR.position.x;
-        this.mesh.add(eyeR);
-        this.mesh.add(eyeL);
-
+        eyeR.name = "eyeR";
+        eyeL.name = "eyeL";
+        head.add(eyeR);
+        head.add(eyeL);
+    
         // Create the arms
-
-        // Right arm
-        var armR = new THREE.Group();
         var armGeom = new THREE.CylinderGeometry(1, 1, 7, 4, 1);
         var armMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
         var armR = new THREE.Mesh(armGeom, armMat);
         armR.position.set(3.5, 1.5, 0);
-        
         var armL = armR.clone();
         armL.position.x = -armR.position.x;
-        this.mesh.add(armR);
-        this.mesh.add(armL);
-
-        //Rotate the arms slightly to the outside
+        armR.name = "armR";
+        armL.name = "armL";
+        body.add(armR);
+        body.add(armL);
+    
+        // Rotate arms slightly for natural pose
         armR.rotation.z = 0.3;
         armL.rotation.z = -0.3;
-
+    
         // Create the legs
         var legGeom = new THREE.CylinderGeometry(1, 1, 10, 4, 1);
         var legMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
         var legR = new THREE.Mesh(legGeom, legMat);
-        legR.position.set(2
-            , -5, 0);
+        legR.position.set(2, -5, 0);
         var legL = legR.clone();
         legL.position.x = -legR.position.x;
-        this.mesh.add(legR);
-        this.mesh.add(legL);
-
+        legR.name = "legR";
+        legL.name = "legL";
+        this.visualGroup.add(legR);
+        this.visualGroup.add(legL);
+    
         // Create the skis
         var skiGeom = new THREE.BoxGeometry(2.5, 1, 20);
         var skiMat = new THREE.MeshPhongMaterial({ color: 0x333333, flatShading: true });
@@ -508,22 +614,23 @@ export default class Character_Ski {
         skiR.position.set(2, -10, 0);
         var skiL = skiR.clone();
         skiL.position.x = -skiR.position.x;
-        this.mesh.add(skiR);
-        this.mesh.add(skiL);
-
+        skiR.name = "skiR";
+        skiL.name = "skiL";
+        this.visualGroup.add(skiR);
+        this.visualGroup.add(skiL);
+    
         // Create the ski poles
-        // Ski pole group
         var poleGroupR = new THREE.Group();
         poleGroupR.position.set(5, -5.1, 0);
         var poleGroupL = new THREE.Group();
         poleGroupL.position.set(-5, -5.1, 0);
-
+    
         var poleGeom = new THREE.CylinderGeometry(0.1, 0.1, 10, 4, 1);
         var poleMat = new THREE.MeshPhongMaterial({ color: 0x333333, flatShading: true });
         var pole = new THREE.Mesh(poleGeom, poleMat);
         poleGroupR.add(pole);
         poleGroupL.add(pole.clone());
-
+    
         // Create the ski pole handles
         var handleGeom = new THREE.SphereGeometry(0.5, 32, 32);
         var handleMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
@@ -531,29 +638,28 @@ export default class Character_Ski {
         handle.position.set(0, -5, 0);
         poleGroupR.add(handle);
         poleGroupL.add(handle.clone());
-
+        poleGroupR.name = "poleR";
+        poleGroupL.name = "poleL";
         this.mesh.add(poleGroupR);
         this.mesh.add(poleGroupL);
-
-        //Place headband with headlight on head
+    
+        // Place headband with headlight on head
         var headbandLight = new THREE.Group();
-        headbandLight.position.set(0, 9.5, 0);
+        headbandLight.position.set(0, 1.5, 0);
         headbandLight.rotation.x = Math.PI / 2;
         var headbandGeom = new THREE.TorusGeometry(2.7, 0.5, 16, 100);
         var headbandMat = new THREE.MeshPhongMaterial({ color: 0x333333, flatShading: true });
         var headband = new THREE.Mesh(headbandGeom, headbandMat);
         headbandLight.add(headband);
-
+    
         // Create the headlight
-        
         var lightGeom = new THREE.CylinderGeometry(0.5, 0.5, 0.6);
         var lightMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
         var light = new THREE.Mesh(lightGeom, lightMat);
         light.position.set(0, 3, 0);
         headbandLight.add(light);
-
-
-
+    
+        // Create light source
         var light = new THREE.SpotLight(0xffffff, 10);
         light.decay = 0.6;
         light.customDistanceMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -561,14 +667,15 @@ export default class Character_Ski {
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);
-
+    
         light.castShadow = true;
         light.shadow.mapSize.width = 1024;
         light.shadow.mapSize.height = 1024;
         headbandLight.add(light);
         headbandLight.add(light.target);
-
-        this.mesh.add(headbandLight);
-
+        headbandLight.name = "headbandLight";
+    
+        head.add(headbandLight);
     }
+    
 }

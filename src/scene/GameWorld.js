@@ -331,7 +331,7 @@ export default class GameWorld {
 
         }
 
-        const speed = this.skier._velocity ? this.skier._velocity.z : 0;
+        const speed = this.skier.getCurrentSpeed() ? this.skier.getCurrentSpeed() : 0;
         const speedKmH = Math.round(speed * 3.6);
         this.speedText.innerHTML = `${speedKmH} km/h`;
 

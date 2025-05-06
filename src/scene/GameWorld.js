@@ -106,7 +106,7 @@ export default class GameWorld {
         this.scoreDisplay.innerHTML = "Score: 0";
 
         this.speedometerDisplay = document.createElement("div");
-        this.speedometerDisplay.style.position = "absolute";
+        this.speedometerDisplay.style.position = "relative";
         this.speedometerDisplay.style.bottom = "20px";
         this.speedometerDisplay.style.left = "50%";
         this.speedometerDisplay.style.transform = "translateX(-50%)";
@@ -175,6 +175,32 @@ export default class GameWorld {
             this.speedometerDisplay.appendChild(tick);
         }
 
+        // charging bar container
+        this.chargeBarContainer = document.createElement("div");
+        this.chargeBarContainer.style.position = "absolute";
+        this.chargeBarContainer.style.bottom = "20px";
+        this.chargeBarContainer.style.right = "20px";
+        this.chargeBarContainer.style.width = "16px";
+        this.chargeBarContainer.style.height = "120px";
+        this.chargeBarContainer.style.background = "rgba(255, 255, 255, 0.1)";
+        this.chargeBarContainer.style.border = "2px solid lime";
+        this.chargeBarContainer.style.borderRadius = "8px";
+        this.chargeBarContainer.style.overflow = "hidden";
+        this.chargeBarContainer.style.zIndex = "1000";
+        this.chargeBarContainer.style.pointerEvents = "none";
+
+        // inner fill bar
+        this.chargeBar = document.createElement("div");
+        this.chargeBar.style.width = "100%";
+        this.chargeBar.style.height = "0%";  // start at 0%
+        this.chargeBar.style.background = "lime";
+        this.chargeBar.style.transition = "height 0.1s ease";
+
+        this.chargeBarContainer.appendChild(this.chargeBar);
+        document.body.appendChild(this.chargeBarContainer);
+
+
+
 
         document.body.appendChild(this.timerDisplay);
         document.body.appendChild(this.fpsDisplay);
@@ -189,6 +215,44 @@ export default class GameWorld {
         window.addEventListener('keydown', (e) => this._onKeyDown(e));
 
     }
+
+    updateChargeBar = (chargeLevel) => {
+        const clamped = Math.min(1, Math.max(0, chargeLevel / 50));
+        this.chargeBar.style.height = `${clamped * 100}%`;
+    
+        // Optional: glow or color change
+        if (clamped >= 1) {
+            this.chargeBarContainer.style.border = "2px solid red";
+            this.chargeBarContainer.style.animation = "pulse 1s infinite";
+            this.chargeBarContainer.style.boxShadow = "0 0 15px red"; // 🔥 glow effect
+        
+            // Add the animation if not already present
+            if (!document.getElementById("pulse-style")) {
+                const style = document.createElement("style");
+                style.id = "pulse-style";
+                style.innerHTML = `
+                    @keyframes pulse {
+                        0% { transform: scaleY(1); opacity: 1; }
+                        50% { transform: scaleY(1.05); opacity: 0.7; }
+                        100% { transform: scaleY(1); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        } else {
+            this.chargeBarContainer.style.border = "2px solid lime";
+            this.chargeBarContainer.style.animation = "none";
+            this.chargeBarContainer.style.boxShadow = "none";
+            this.chargeBar.style.animation = "none";
+        }
+        
+    
+        // Optional: gradient or dynamic color
+        const red = Math.floor(255 * clamped);
+        const green = Math.floor(255 * (1 - clamped));
+        this.chargeBar.style.background = `rgb(${red}, ${green}, 0)`;
+    };
+    
 
     _onKeyDown(event) {
         switch (event.key) {
@@ -206,12 +270,12 @@ export default class GameWorld {
 
     _addObjects() {
         //mountain
-        const mountain = new Mountain(250);
+        const mountain = new Mountain(500);
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(250, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain);
+        const mountain2 = new Mountain(500, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain);
         const angle = mountain.mesh.rotation.x;
         mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
         mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
@@ -256,12 +320,12 @@ export default class GameWorld {
     
 
         //mountain
-        const mountain = new Mountain(250);
+        const mountain = new Mountain(300);
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(250, 50, 10, 0xffffff, mountain.steepness, Math.random(), 15 * Math.random(), mountain); // Pass the previous mountain
+        const mountain2 = new Mountain(300, 100, 10, 0xffffff, mountain.steepness, Math.random(), 15 * Math.random(), mountain); // Pass the previous mountain
         const angle = mountain.mesh.rotation.x;
         mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
         mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
@@ -335,6 +399,10 @@ export default class GameWorld {
         const speedKmH = Math.round(speed * 3.6);
         this.speedText.innerHTML = `${speedKmH} km/h`;
 
+        const chargingPercentage = Math.min(50, 10 * this.skier.timeCharging);
+        this.updateChargeBar(chargingPercentage);
+
+
         // Clamp and map speed to angle (max 100 km/h = 270° rotation)
         const clampedSpeed = Math.min(speedKmH, 300);
         const angle = (clampedSpeed / 300) * 270 - 135; // map [0, 100] to [-135°, +135°]
@@ -359,6 +427,7 @@ export default class GameWorld {
         const angle = lastFloor.mesh.rotation.x;
         if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 4; i++) {
+                console.log("rocks", lastFloor.rocks);
                 const newFloor = new Mountain(
                     lastFloor.size,
                     50,
@@ -366,7 +435,7 @@ export default class GameWorld {
                     0xffffff,
                     lastFloor.steepness,
                     Math.random(),
-                    15 * Math.random(),
+                    Math.max(0, lastFloor.rocks + 15 * (Math.random() - 0.5)),
                     lastFloor  // 👈 Pass the previous mountain
                   );
                   

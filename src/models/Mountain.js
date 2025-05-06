@@ -24,17 +24,28 @@ export default class Mountain {
         this.noise = new SimplexNoise(this.seed);
         this.heightMap = [];
         this.mesh = this.createMountain();
-        this.rocks = this.generateRocks();
         //this.rocks.raycast = function(raycaster, intersects) {
         //    return false;
         //}
         const now = Date.now();
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
-        this.generateGates(-this.size / 2 + 15, 0xff0000);
+        console.log("prev mountain: ", previousMountain);
+        if (previousMountain) {
+            console.log("prev gates: ", previousMountain.gates);
+            console.log("prev gates children: ", previousMountain.gates.children);
+            console.log("last children: ", previousMountain.gates.children[previousMountain.gates.children.length - 1].children[0].children[0].material.color.getHex());
+        }
+        if (previousMountain && previousMountain.gates.children[previousMountain.gates.children.length - 1].children[0].children[0].material.color.getHex() == 0x0000ff) {
+            this.generateGates(-this.size / 2 + 15, 0xff0000);
+        }
+        else {
+            this.generateGates(-this.size / 2 + 15, 0x0000ff);
+        }
+        
         console.log("Gates generated in " + (Date.now() - now) + "ms");
         this.checkedGates = this.gates.clone().children;
-        this.mesh.add(this.rocks);
+        this.mesh.add(this.generateRocks());
         this.mesh.add(this.generateTrees());
         console.log("Mountain generated in " + (Date.now() - startGenerating) + "ms");
     }
@@ -187,7 +198,7 @@ export default class Mountain {
         }
 
         const gate = new SlalomGate(new THREE.TextureLoader(), null, color);
-        const x_pos = Math.random() * 10 + 15;
+        const x_pos = Math.random() * 5 + 1;
 
         switch (color) {
             case 0xff0000:
@@ -206,7 +217,7 @@ export default class Mountain {
                 break;
         }
 
-        z_pos = z_pos + Math.random() * 10 + 120;
+        z_pos = z_pos + Math.random() * 10 + 180;
         this.generateGates(z_pos, color);
     }
 

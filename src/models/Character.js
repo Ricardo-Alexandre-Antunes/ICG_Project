@@ -18,7 +18,7 @@ export default class Character_Ski {
         this.counter = 0;
         this.onGround = false;
         this.score = 0;
-        this.gravity = new THREE.Vector3(0, -25, 0);
+        this.gravity = new THREE.Vector3(0, -24, 0);
         this.sideVelocity = 0;    // smooth horizontal (x-axis) velocity
         this.turningRight = false;
         this.turningLeft = false;
@@ -26,6 +26,8 @@ export default class Character_Ski {
         this.turningLeftTime = 0;  // time spent turning left
         this.timeOnAir = 0; // time spent in the air
         this.curGround = null;
+        this.timeCharging = 0;
+        this.rotationPower = 1;
 
         this.lastScoreUpdate = Date.now();
         this.createMesh();
@@ -124,6 +126,10 @@ export default class Character_Ski {
             case 83:
                 this.keys.backward = true;
                 break;
+            // space key
+            case 32:
+                this.keys.space = true;
+                break;
         }
     }
 
@@ -145,6 +151,10 @@ export default class Character_Ski {
             case 83:
                 this.keys.backward = false;
                 break;
+            // space key
+            case 32:
+                this.keys.space = false;
+                break;
         }
     }
 
@@ -161,7 +171,7 @@ export default class Character_Ski {
         const velocity = this._velocity.clone();
         const velocityAlongGround = velocity.clone().sub(this.curGround.face.normal.clone().multiplyScalar(velocity.dot(this.curGround.face.normal)));
         const speed = velocityAlongGround.length();
-        return speed;
+        return speed / 2;
     }
 
     Update(timeInSeconds) {
@@ -194,6 +204,7 @@ export default class Character_Ski {
         // Apply physics using delta time
         //console.log("acceleration disregard fps", this._acceleration);
         //console.log("acceleration", this._acceleration.clone().multiplyScalar(timeInSeconds));
+        console.log("final accel", this._acceleration.clone().multiplyScalar(timeInSeconds));
         this._velocity.add(this._acceleration.clone().multiplyScalar(timeInSeconds));
         this.mesh.position.add(this._velocity.clone().multiplyScalar(timeInSeconds));
     
@@ -204,8 +215,8 @@ export default class Character_Ski {
         }
     
         // Clamp X position
-        if (this.mesh.position.x > 100) this.mesh.position.x = 100;
-        if (this.mesh.position.x < -100) this.mesh.position.x = -100;
+        if (this.mesh.position.x > 220) this.mesh.position.x = 220;
+        if (this.mesh.position.x < -220) this.mesh.position.x = -220;
     }
     
     
@@ -222,9 +233,9 @@ export default class Character_Ski {
         const verticalVelocity = this._velocity.y;
     
         // Consider a small margin of tolerance based on velocity and deltaTime
-        const margin = Math.max(0.01, Math.abs(verticalVelocity * deltaTime));
+        const margin = Math.max(0.001, Math.abs(verticalVelocity * deltaTime));
     
-        if (currentY <= groundHeight + skierHeightOffset + margin) {
+        if (currentY <= groundHeight + skierHeightOffset + margin / 2) {
             // Snap above ground
             this.mesh.position.y = groundHeight + skierHeightOffset;
             this.onGround = true;
@@ -246,9 +257,9 @@ export default class Character_Ski {
             this._acceleration.add(slideForce);
     
             // Push in skier's forward direction projected onto the slope
-            const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion);
-            const push = forward.clone().sub(worldNormal.clone().multiplyScalar(forward.dot(worldNormal)));
-            this._acceleration.add(push.multiplyScalar(1.0)); // scale as needed
+            //const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion);
+            //const push = forward.clone().sub(worldNormal.clone().multiplyScalar(forward.dot(worldNormal)));
+            //this._acceleration.add(push.multiplyScalar(0.4)); // scale as needed
     
             // Optional: tilt the mesh to match terrain slope
             // Align skier to terrain slope without flipping forward direction
@@ -293,27 +304,52 @@ export default class Character_Ski {
         const _R = controlObject.quaternion.clone();
     
         if (this.onGround) {
+            if (this.keys.space) {
+                this.timeCharging += timeInSeconds;
+                this.rotationPower = Math.min(1, this.timeCharging * 10);
+            }
+            if (!this.keys.space && this.timeCharging > 0) {
+                console.log("JUMP!!!!");
+                // perform jump
+                const accelerationJump = new THREE.Vector3(0, 0.2, 0.2);
+                // apply quarterion for skier's up
+                accelerationJump.applyQuaternion(controlObject.quaternion);
+                const jumpStrength = Math.min(50, 10 * this.timeCharging);
+                accelerationJump.multiplyScalar(jumpStrength);
+                console.log(this._acceleration);
+                this.mesh.position.add(new THREE.Vector3(0, 0.6, 0));
+                this._velocity.add(accelerationJump);
+                console.log(this._acceleration);
+                this.timeCharging = 0;
+                return;
+            }
+            if (this.timeCharging == 0) {
+                this.rotationPower = 1;
+            }
             this._HandleGroundMovement(velocity, _R, _Q, _A);
             controlObject.quaternion.copy(_R);
     
-            const forward = new THREE.Vector3(0, 0, 20).applyQuaternion(controlObject.quaternion).normalize();
-            const right = new THREE.Vector3(10, 0, 0).applyQuaternion(controlObject.quaternion).normalize();
+        
     
-            forward.multiplyScalar(0); // Can tweak this if you want some push forward
-            right.multiplyScalar(this.sideVelocity);
-    
-            const moveVector = new THREE.Vector3().add(forward).add(right);
-            this._acceleration.add(moveVector);
-    
+            // --- Smoothly align velocity to facing direction ---
             // --- Smoothly align velocity to facing direction ---
             const speed = velocity.length();
             if (speed > 0.01) {
                 const currentDir = velocity.clone().normalize();
+
+                // Get forward direction from quaternion
                 const facingDir = new THREE.Vector3(0, 0, 1).applyQuaternion(controlObject.quaternion).normalize();
-                const turnBlendFactor = 0.05; // tweak for more or less drift
+
+                // Make direction always "forward-facing" (flip if skier is facing backward)
+                if (facingDir.z < 0) {
+                    facingDir.negate();
+                }
+
+                const turnBlendFactor = 0.01; // tweak for more or less drift
                 const blendedDir = currentDir.lerp(facingDir, turnBlendFactor).normalize();
                 this._velocity.copy(blendedDir.multiplyScalar(speed));
             }
+
     
         } else {
             this._HandleAirMovement(timeInSeconds);
@@ -352,11 +388,14 @@ export default class Character_Ski {
         }
         
         if (this.keys.backward) {
-            // Subtract a push in the backward direction
-            const backward = this._velocity.clone().multiplyScalar(-0.2);
-            this._acceleration.add(backward);
-            
+            const speed = this._velocity.length();
+            if (speed > 0.01) {
+                const brakeStrength = THREE.MathUtils.clamp(1.5 * speed + 0.5, 0, 20);
+                const brake = this._velocity.clone().multiplyScalar(-brakeStrength / speed);
+                this._acceleration.add(brake);
+            }
         }
+        
     
         if (this.keys.left) {
             if (this.turningLeft) {
@@ -367,7 +406,10 @@ export default class Character_Ski {
             this.turningRight = false;
             this.turningLeft = true;
             _A.set(0, 1, 0);
-            _Q.setFromAxisAngle(_A, 0.05);
+            console.log("turn strength test", 100/this._velocity.lengthSq());
+            console.log("turn strength test1", 0.1/this._velocity.lengthSq());
+            const turnStrength = Math.min(0.05, 100/this._velocity.lengthSq());
+            _Q.setFromAxisAngle(_A, turnStrength);
             _R.multiply(_Q);
     
         } else {
@@ -384,7 +426,8 @@ export default class Character_Ski {
             this.turningLeft = false;
             this.turningRight = true;
             _A.set(0, 1, 0);
-            _Q.setFromAxisAngle(_A, -0.05);
+            const turnStrength = Math.min(0.05, 100/this._velocity.lengthSq());
+            _Q.setFromAxisAngle(_A, -turnStrength);
             _R.multiply(_Q);
     
         } else {
@@ -397,16 +440,16 @@ export default class Character_Ski {
     _HandleAirMovement(timeInSeconds) {
     
         if (this.keys.left) {
-            this.mesh.rotation.y += 12 * timeInSeconds;
+            this.mesh.rotation.y += 9 * timeInSeconds * this.rotationPower;
         }
         if (this.keys.right) {
-            this.mesh.rotation.y -= 12 * timeInSeconds;
+            this.mesh.rotation.y -= 9 * timeInSeconds * this.rotationPower;
         }
         if (this.keys.forward) {
-            this.mesh.rotation.x -= 12 * timeInSeconds;
+            this.mesh.rotation.x -= 9 * timeInSeconds * this.rotationPower;
         }
         if (this.keys.backward) {
-            this.mesh.rotation.x += 12 * timeInSeconds;
+            this.mesh.rotation.x += 9 * timeInSeconds * this.rotationPower;
         }
     }
     

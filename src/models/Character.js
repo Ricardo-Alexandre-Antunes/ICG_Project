@@ -1,7 +1,10 @@
 import * as THREE from "three";
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
 
 export default class Character_Ski {
-    constructor(surface) {
+    constructor(surface, name="Skier") {
         this.start = Date.now();
         const document = window.document;
         //keys
@@ -30,7 +33,7 @@ export default class Character_Ski {
         this.rotationPower = 1;
 
         this.lastScoreUpdate = Date.now();
-        this.createMesh();
+        this.createMesh(name);
 
         this.snowParticles = [];
         this._InitSnowParticles();
@@ -204,7 +207,7 @@ export default class Character_Ski {
         // Apply physics using delta time
         //console.log("acceleration disregard fps", this._acceleration);
         //console.log("acceleration", this._acceleration.clone().multiplyScalar(timeInSeconds));
-        console.log("final accel", this._acceleration.clone().multiplyScalar(timeInSeconds));
+        //console.log("final accel", this._acceleration.clone().multiplyScalar(timeInSeconds));
         this._velocity.add(this._acceleration.clone().multiplyScalar(timeInSeconds));
         this.mesh.position.add(this._velocity.clone().multiplyScalar(timeInSeconds));
     
@@ -305,21 +308,21 @@ export default class Character_Ski {
     
         if (this.onGround) {
             if (this.keys.space) {
-                this.timeCharging += timeInSeconds;
+                this.timeCharging += timeInSeconds * 4;
                 this.rotationPower = Math.min(1, this.timeCharging * 10);
             }
             if (!this.keys.space && this.timeCharging > 0) {
-                console.log("JUMP!!!!");
+                //console.log("JUMP!!!!");
                 // perform jump
                 const accelerationJump = new THREE.Vector3(0, 0.2, 0.2);
                 // apply quarterion for skier's up
                 accelerationJump.applyQuaternion(controlObject.quaternion);
                 const jumpStrength = Math.min(50, 10 * this.timeCharging);
                 accelerationJump.multiplyScalar(jumpStrength);
-                console.log(this._acceleration);
-                this.mesh.position.add(new THREE.Vector3(0, 0.6, 0));
+                //console.log(this._acceleration);
+                this.mesh.position.add(new THREE.Vector3(0, 0.8, 0));
                 this._velocity.add(accelerationJump);
-                console.log(this._acceleration);
+                //console.log(this._acceleration);
                 this.timeCharging = 0;
                 return;
             }
@@ -406,9 +409,9 @@ export default class Character_Ski {
             this.turningRight = false;
             this.turningLeft = true;
             _A.set(0, 1, 0);
-            console.log("turn strength test", 100/this._velocity.lengthSq());
-            console.log("turn strength test1", 0.1/this._velocity.lengthSq());
-            const turnStrength = Math.min(0.05, 100/this._velocity.lengthSq());
+            //console.log("turn strength test", 100/this._velocity.lengthSq());
+            //console.log("turn strength test1", 0.1/this._velocity.lengthSq());
+            const turnStrength = Math.min(0.1, 100/this._velocity.lengthSq() + 0.05);
             _Q.setFromAxisAngle(_A, turnStrength);
             _R.multiply(_Q);
     
@@ -426,7 +429,7 @@ export default class Character_Ski {
             this.turningLeft = false;
             this.turningRight = true;
             _A.set(0, 1, 0);
-            const turnStrength = Math.min(0.05, 100/this._velocity.lengthSq());
+            const turnStrength = Math.min(0.1, 100/this._velocity.lengthSq() + 0.05);
             _Q.setFromAxisAngle(_A, -turnStrength);
             _R.multiply(_Q);
     
@@ -508,7 +511,7 @@ export default class Character_Ski {
         // Skier mesh
 
         const skierMesh = this.mesh.children[0];
-        console.log(skierMesh);
+        //console.log(skierMesh);
     
         // === LEGS ===
         const rightLeg = skierMesh.children[2];
@@ -583,7 +586,7 @@ export default class Character_Ski {
     
 
 
-    createMesh() {
+    createMesh(name="Skier") {
         // Main skier mesh for position and movement
         this.mesh = new THREE.Group(); // World position & movement
     
@@ -596,7 +599,7 @@ export default class Character_Ski {
     
         // Create the body
         var bodyGeom = new THREE.CylinderGeometry(3.5, 3, 10, 4, 1);
-        var bodyMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
+        var bodyMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
         var body = new THREE.Mesh(bodyGeom, bodyMat);
         body.name = "body";
         body.position.set(0, 0, 0);
@@ -604,7 +607,7 @@ export default class Character_Ski {
     
         // Create the head
         var headGeom = new THREE.SphereGeometry(3, 32, 32);
-        var headMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
+        var headMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
         var head = new THREE.Mesh(headGeom, headMat);
         head.name = "head";
         head.position.set(0, 8, 0);
@@ -624,7 +627,7 @@ export default class Character_Ski {
     
         // Create the arms
         var armGeom = new THREE.CylinderGeometry(1, 1, 7, 4, 1);
-        var armMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
+        var armMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
         var armR = new THREE.Mesh(armGeom, armMat);
         armR.position.set(3.5, 1.5, 0);
         var armL = armR.clone();
@@ -640,7 +643,7 @@ export default class Character_Ski {
     
         // Create the legs
         var legGeom = new THREE.CylinderGeometry(1, 1, 10, 4, 1);
-        var legMat = new THREE.MeshPhongMaterial({ color: 0xff3333, flatShading: true });
+        var legMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
         var legR = new THREE.Mesh(legGeom, legMat);
         legR.position.set(2, -5, 0);
         var legL = legR.clone();
@@ -719,6 +722,7 @@ export default class Character_Ski {
         headbandLight.name = "headbandLight";
     
         head.add(headbandLight);
+
     }
     
 }

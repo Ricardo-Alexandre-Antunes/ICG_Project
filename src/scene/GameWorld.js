@@ -3,6 +3,7 @@ import Character_Ski from '../models/Character.js';
 import Mountain from '../models/Mountain.js';
 import ThirdPersonCamera from '../cameras/ThirdPersonCamera.js';
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Fog } from './Fog.js';
 import Sun from '../models/Sun.js';
 
 
@@ -11,11 +12,12 @@ import Sun from '../models/Sun.js';
 export default class GameWorld {
     
 
-    constructor() {
+    constructor(numberPlayers = 1) {
         this.htmlElement = document.querySelector("#MainScene");
         this.previousRAF = null;
         this.start = Date.now();
-        this.timeLeft = 300 * 1000;
+        this.numberPlayers = numberPlayers;
+        this.timeLeft = 300 * 10000;
         this._Initialize();
     }
 
@@ -30,6 +32,9 @@ export default class GameWorld {
         this.sceneGraph = new THREE.Scene();
         this.floor = [];
 
+        //fog
+        this.fog = new Fog(this.sceneGraph);
+
         //camera
         this.allCameras = [];
         this.curCamera = 0;
@@ -42,7 +47,6 @@ export default class GameWorld {
         //renderer
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.renderer.setClearColor(0x87CEEB, 1.0);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -54,9 +58,9 @@ export default class GameWorld {
         this.control.screenSpacePanning = true;
 
         //sun
-        const sun = new Sun();
-        this.sceneGraph.add(sun.mesh);
-        this.animatedObjects.push(sun);
+        this.sun = new Sun();
+        this.sceneGraph.add(this.sun.mesh);
+        this.animatedObjects.push(this.sun);
 
 
         this.lastFrameTime = performance.now();
@@ -92,18 +96,35 @@ export default class GameWorld {
 
 
         //skier score
-        this.scoreDisplay = document.createElement("div");
-        this.scoreDisplay.style.position = "absolute";
-        this.scoreDisplay.style.top = "10px";
-        this.scoreDisplay.style.right = "10px";
-        this.scoreDisplay.style.color = "white";
-        this.scoreDisplay.style.background = "rgba(0,0,0,0.7)";
-        this.scoreDisplay.style.padding = "5px";
-        this.scoreDisplay.style.fontFamily = "Arial";
-        this.scoreDisplay.style.color = "lime";  // Change text color to green
-        this.scoreDisplay.style.fontSize = "14px"; // Make it readable
-        this.scoreDisplay.style.width = "80px"; // Give it some width
-        this.scoreDisplay.innerHTML = "Score: 0";
+        this.skierHud = [];
+        const cols = Math.ceil(Math.sqrt(this.numberPlayers));
+        const rows = Math.ceil(this.numberPlayers / cols);
+        const viewWidth = window.innerWidth / cols;
+        const viewHeight = window.innerHeight / rows;
+        
+        for (let i = 0; i < this.numberPlayers; i++) {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+        
+            const left = col * viewWidth + 10;
+            const top = row * viewHeight + 10;
+        
+            const skierHud = document.createElement("div");
+            skierHud.style.position = "absolute";
+            skierHud.style.left = `${left}px`;
+            skierHud.style.top = `${top}px`;
+            skierHud.style.color = "lime";
+            skierHud.style.background = "rgba(0,0,0,0.7)";
+            skierHud.style.padding = "5px";
+            skierHud.style.fontFamily = "Arial";
+            skierHud.style.fontSize = "14px";
+            skierHud.style.width = "80px";
+            skierHud.innerHTML = `Score: 0`;
+        
+            this.skierHud.push(skierHud);
+        }
+        
+
 
         this.speedometerDisplay = document.createElement("div");
         this.speedometerDisplay.style.position = "relative";
@@ -204,7 +225,9 @@ export default class GameWorld {
 
         document.body.appendChild(this.timerDisplay);
         document.body.appendChild(this.fpsDisplay);
-        document.body.appendChild(this.scoreDisplay);
+        this.skierHud.forEach((skierHud) => {
+            document.body.appendChild(skierHud);
+        });
 
 
         this._addObjects();
@@ -283,23 +306,32 @@ export default class GameWorld {
         this.floor.push(mountain2);
 
         //skier
-        this.skier = new Character_Ski([mountain.mesh, mountain2.mesh]);
-        this.skier.mesh.position.y = 50;
-        this.skier.mesh.position.x = -10;
-        this.skier.mesh.scale.set(0.1, 0.1, 0.1);
-        this.sceneGraph.add(this.skier.mesh);
-        this.animatedObjects.push(this.skier);
+        this.skiers = [];
+        for (let i = 0; i < this.numberPlayers; i++) {
+            const skier = new Character_Ski([mountain.mesh, mountain2.mesh], "Skier " + (i + 1));
 
-        //skier's camera
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
-        const params = 
-        {
-            camera: camera,
-            target: this.skier.mesh
-        };
-        const skierCamera = new ThirdPersonCamera(params);
-        this.allCameras.push(skierCamera._camera);
-        this.animatedObjects.push(skierCamera);
+            skier.mesh.position.y = 50;
+            skier.mesh.position.x = -10 + i * 5;
+            skier.mesh.scale.set(0.1, 0.1, 0.1);
+            this.sceneGraph.add(skier.mesh);
+            this.skiers.push(skier);
+            this.animatedObjects.push(skier);
+
+            //skier's camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
+            const params = 
+            {
+                camera: camera,
+                target: skier.mesh
+            };
+            const skierCamera = new ThirdPersonCamera(params);
+            this.allCameras.push(skierCamera._camera);
+            this.animatedObjects.push(skierCamera);
+        }
+
+        this.skier = this.skiers[0];
+
+
 
 
     }
@@ -320,26 +352,28 @@ export default class GameWorld {
     
 
         //mountain
-        const mountain = new Mountain(300);
+        const mountain = new Mountain(500);
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain(300, 100, 10, 0xffffff, mountain.steepness, Math.random(), 15 * Math.random(), mountain); // Pass the previous mountain
+        const mountain2 = new Mountain(500, 50, 10, 0xffffff, mountain.steepness, Math.random(), 50 * Math.random(), mountain);
         const angle = mountain.mesh.rotation.x;
         mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
         mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
         this.sceneGraph.add(mountain2.mesh);
         this.floor.push(mountain2);
 
+
         //skier
         this.skier = new Character_Ski([mountain.mesh, mountain2.mesh]);
+        this.skier.mesh.add(this.fog.snowstorm);
         this.skier.mesh.scale.set(0.1, 0.1, 0.1);
         this.sceneGraph.add(this.skier.mesh);
         this.animatedObjects.push(this.skier);
 
         //skier's camera
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         const params = 
         {
             camera: camera,
@@ -364,26 +398,36 @@ export default class GameWorld {
     render() {
         //check which floor skier is in
         if (Date.now() - this.skier.lastScoreUpdate > 200) {
-            for (let i = 0; i < this.floor.length; i++) {
-                if (this.skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.cos(-this.floor[i].mesh.rotation.x) / 2) {
-                    const pass_gate = this.floor[i].checkSkierScore(this.skier);
-                    if (pass_gate == -1) {
-                        this.timeLeft -= 3000;
+            for (let i = 0; i < this.skiers.length; i++) {
+                const skier = this.skiers[i];
+                for (let i = 0; i < this.floor.length; i++) {
+                    if (skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.cos(-this.floor[i].mesh.rotation.x) / 2) {
+                        const pass_gate = this.floor[i].checkSkierScore(skier);
+                        if (pass_gate != 0) {
+                            console.log("pass_gate", pass_gate);
+                        }
+                        if (pass_gate == -1) {
+                            this.timeLeft -= 3000;
+                        }
+                        if (pass_gate == 1) {
+                            this.timeLeft += 1000;
+                        }
+                        break;
                     }
-                    if (pass_gate == 1) {
-                        this.timeLeft += 1000;
-                    }
-                    break;
                 }
-            }
-            if (this.timeLeft <= 0) {
-                this._skierLose();
+                if (this.timeLeft <= 0) {
+                    this._skierLose();
+                }
             }
         }
 
         const now = performance.now();
         this.frameCount++;
-        this.scoreDisplay.innerHTML = `Score: ${this.skier.score}`;
+        for (let i = 0; i < this.skiers.length; i++) {
+            const skier = this.skiers[i];
+            //console.log(this.skierHud[i]);
+            this.skierHud[i].innerHTML = `Score: ${skier.score}`;
+        }
         if (now - this.lastFrameTime >= 1000) {
             this.fps = this.frameCount;
             this.timeLeft -= 1000;
@@ -408,7 +452,48 @@ export default class GameWorld {
         const angle = (clampedSpeed / 300) * 270 - 135; // map [0, 100] to [-135°, +135°]
         this.speedNeedle.style.transform = `rotate(${angle}deg)`;
 
-        this.renderer.render(this.sceneGraph, this.camera);
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        this.renderer.setScissorTest(true);
+        
+            // Calculate the number of rows and columns based on the number of players
+            const cols = Math.ceil(Math.sqrt(this.skiers.length));
+            const rows = Math.ceil(this.skiers.length / cols);
+        
+            // Calculate viewport dimensions for each split-screen section
+            const viewWidth = width / cols;
+            const viewHeight = height / rows;
+        
+            // Iterate through each skier and render the scene from their respective camera
+            for (let i = 0; i < this.skiers.length; i++) {
+                const col = i % cols; // Column position for this skier
+                const row = Math.floor(i / cols); // Row position for this skier
+        
+                // Calculate the top-left corner of the viewport for this skier
+                const left = col * viewWidth;
+                const top = row * viewHeight;
+        
+                // Set the viewport and scissor area for rendering
+                this.renderer.setViewport(left, top, viewWidth, viewHeight);
+                this.renderer.setScissor(left, top, viewWidth, viewHeight);
+                this.renderer.setScissorTest(true);
+
+                //console.log("skier", this.skiers[i]);
+                //console.log("skier velocity", this.skiers[i]._velocity);
+                //console.log("sun", this.sun);
+                this.fog.update(this.skiers[i], this.sun.mesh);
+                
+        
+                // Render the scene from the skier's camera
+                this.renderer.render(this.sceneGraph, this.allCameras[i+1]);
+            }
+        
+            // Reset scissor test for UI rendering (if needed)
+            this.renderer.setScissorTest(false);
+        
+
+        this.renderer.setScissorTest(false);
     }
 
     _Step(timeElapsed) {
@@ -425,9 +510,10 @@ export default class GameWorld {
         var lastFloor = this.floor[this.floor.length - 1];
         var detectPoint = this.floor[this.floor.length - 2];
         const angle = lastFloor.mesh.rotation.x;
-        if (this.skier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
+        const furthestSkier = this.skiers.reduce((prev, curr) => (prev.mesh.position.z > curr.mesh.position.z) ? prev : curr);
+        if (furthestSkier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 4; i++) {
-                console.log("rocks", lastFloor.rocks);
+                //console.log("rocks", lastFloor.rocks);
                 const newFloor = new Mountain(
                     lastFloor.size,
                     50,
@@ -442,11 +528,13 @@ export default class GameWorld {
                 newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle);
                 newFloor.mesh.position.y = lastFloor.mesh.position.y - lastFloor.size * Math.cos(angle);
                 this.sceneGraph.add(newFloor.mesh);
-                this.skier._updateSurface(newFloor.mesh);
+                for (let idx = 0; idx < this.skiers.length; idx++) {
+                    this.skiers[idx]._updateSurface(newFloor.mesh);
+                }
                 this.floor.push(newFloor);
                 lastFloor = this.floor[this.floor.length - 1];
             }
-            if (this.floor.length > 6) {
+            if (this.floor.length > 16) {
                 this.sceneGraph.remove(this.floor.shift().mesh);
             }
         }

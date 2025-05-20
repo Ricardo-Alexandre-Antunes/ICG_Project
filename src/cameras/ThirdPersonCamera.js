@@ -18,6 +18,7 @@ export default class ThirdPersonCamera {
         //quartenion.setFromEuler(new THREE.Euler(this._params.target.rotation.x, 0.3 * this._params.target.rotation.y, this._params.target.rotation.z, 'XYZ'));
         //idealOffset.applyQuaternion(quartenion);
         idealOffset.add(this._params.target.position);
+        //console.log(this._params.target.position);
         return idealOffset;
     }
 
@@ -45,4 +46,14 @@ export default class ThirdPersonCamera {
         this._camera.lookAt(this._currentLookat);
     }
 
+    resetPosition() {
+        const idealOffset = this._CalculateIdealOffset();
+        const idealLookat = this._CalculateIdealLookat();
+
+
+        this._currentPosition.copy(idealOffset);
+        this._currentLookat.copy(idealLookat);
+        this._camera.position.copy(this._currentPosition);
+        this._camera.lookAt(this._currentLookat);
+    }
 }

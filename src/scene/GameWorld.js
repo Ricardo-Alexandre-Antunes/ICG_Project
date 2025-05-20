@@ -5,6 +5,7 @@ import ThirdPersonCamera from '../cameras/ThirdPersonCamera.js';
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Fog } from './Fog.js';
 import Sun from '../models/Sun.js';
+import FirstPersonCamera from '../cameras/FirstPersonCamera.js';
 
 
 //"FREE - SkyBox Mountain View" (https://skfb.ly/oJrZI) by Paul is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
@@ -22,8 +23,7 @@ export default class GameWorld {
     }
 
     _Initialize() {
-
-
+        
 
         //animated objects
         this.animatedObjects = [];
@@ -85,14 +85,17 @@ export default class GameWorld {
         this.timerDisplay.style.top = "10px";
         this.timerDisplay.style.left = "50%";
         this.timerDisplay.style.transform = "translateX(-50%)";
-        this.timerDisplay.style.color = "white";
-        this.timerDisplay.style.background = "rgba(0,0,0,0.7)";
-        this.timerDisplay.style.padding = "5px";
-        this.timerDisplay.style.fontFamily = "Arial";
-        this.timerDisplay.style.color = "lime";  // Change text color to green
-        this.timerDisplay.style.fontSize = "14px"; // Make it readable
-        this.timerDisplay.style.width = "80px"; // Give it some width
+        this.timerDisplay.style.fontFamily = "'Press Start 2P', monospace";
+        this.timerDisplay.style.color = "#00FF00";
+        this.timerDisplay.style.fontSize = "28px";
+        this.timerDisplay.style.padding = "10px 20px";
+        this.timerDisplay.style.background = "rgba(0,0,0,0.8)";
+        this.timerDisplay.style.border = "3px solid lime";
+        this.timerDisplay.style.borderRadius = "12px";
+        this.timerDisplay.style.textShadow = "2px 2px 4px #000";
+        this.timerDisplay.style.zIndex = "1000";
         this.timerDisplay.innerHTML = "Time Left: 30s";
+        
 
 
         //skier score
@@ -106,7 +109,7 @@ export default class GameWorld {
             const col = i % cols;
             const row = Math.floor(i / cols);
         
-            const left = col * viewWidth + 10;
+            const left = col * viewWidth + viewWidth / 2 - 50 ;
             const top = row * viewHeight + 10;
         
             const skierHud = document.createElement("div");
@@ -235,7 +238,7 @@ export default class GameWorld {
 
         //event listeners
         window.addEventListener('resize', () => this._onWindowResize());
-        window.addEventListener('keydown', (e) => this._onKeyDown(e));
+
 
     }
 
@@ -277,19 +280,7 @@ export default class GameWorld {
     };
     
 
-    _onKeyDown(event) {
-        switch (event.key) {
-            case 'c':
-                this._switchCamera();
-                break;
-        }
-    }
 
-    _switchCamera() {
-        console.log("Switching camera");
-        this.curCamera = (this.curCamera + 1) % this.allCameras.length;
-        this.camera = this.allCameras[this.curCamera];
-    }
 
     _addObjects() {
         //mountain
@@ -316,17 +307,6 @@ export default class GameWorld {
             this.sceneGraph.add(skier.mesh);
             this.skiers.push(skier);
             this.animatedObjects.push(skier);
-
-            //skier's camera
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
-            const params = 
-            {
-                camera: camera,
-                target: skier.mesh
-            };
-            const skierCamera = new ThirdPersonCamera(params);
-            this.allCameras.push(skierCamera._camera);
-            this.animatedObjects.push(skierCamera);
         }
 
         this.skier = this.skiers[0];
@@ -372,18 +352,6 @@ export default class GameWorld {
         this.sceneGraph.add(this.skier.mesh);
         this.animatedObjects.push(this.skier);
 
-        //skier's camera
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-        const params = 
-        {
-            camera: camera,
-            target: this.skier.mesh
-        };
-        const skierCamera = new ThirdPersonCamera(params);
-        this.camera = skierCamera._camera;
-        this.allCameras.push(skierCamera._camera);
-        this.animatedObjects.push(skierCamera);
-
     
         
 
@@ -396,105 +364,140 @@ export default class GameWorld {
     }
     
     render() {
-        //check which floor skier is in
-        if (Date.now() - this.skier.lastScoreUpdate > 200) {
-            for (let i = 0; i < this.skiers.length; i++) {
-                const skier = this.skiers[i];
-                for (let i = 0; i < this.floor.length; i++) {
-                    if (skier.mesh.position.z < this.floor[i].mesh.position.z + this.floor[i].size * Math.cos(-this.floor[i].mesh.rotation.x) / 2) {
-                        const pass_gate = this.floor[i].checkSkierScore(skier);
-                        if (pass_gate != 0) {
-                            console.log("pass_gate", pass_gate);
-                        }
-                        if (pass_gate == -1) {
-                            this.timeLeft -= 3000;
-                        }
-                        if (pass_gate == 1) {
-                            this.timeLeft += 1000;
+        const now = Date.now();
+    
+        // Update score if enough time has passed
+        if (now - this.skier.lastScoreUpdate > 200) {
+            this.skier.lastScoreUpdate = now;
+    
+            for (const skier of this.skiers) {
+                const skierZ = skier.mesh.position.z;
+    
+                for (const floor of this.floor) {
+                    const cosRotX = Math.cos(-floor.mesh.rotation.x); // Cache this
+                    const floorZ = floor.mesh.position.z + floor.size * cosRotX / 2;
+    
+                    if (skierZ < floorZ) {
+                        const pass_gate = floor.checkSkierScore(skier);
+    
+                        if (pass_gate !== 0) {
+                            //console.log("pass_gate", pass_gate);
+                            if (pass_gate === -1) this.timeLeft -= 3000;
+                            if (pass_gate === 1) this.timeLeft += 1000;
                         }
                         break;
                     }
                 }
+    
                 if (this.timeLeft <= 0) {
                     this._skierLose();
+                    return; // Stop rendering if game ends
                 }
             }
         }
-
-        const now = performance.now();
+    
+        // Update FPS, Timer, and UI once per second
+        const perfNow = performance.now();
         this.frameCount++;
-        for (let i = 0; i < this.skiers.length; i++) {
-            const skier = this.skiers[i];
-            //console.log(this.skierHud[i]);
-            this.skierHud[i].innerHTML = `Score: ${skier.score}`;
-        }
-        if (now - this.lastFrameTime >= 1000) {
+    
+        if (perfNow - this.lastFrameTime >= 1000) {
             this.fps = this.frameCount;
             this.timeLeft -= 1000;
+    
             this.timerDisplay.innerHTML = `Time Left: ${Math.floor(this.timeLeft / 1000)}s`;
-            this.frameCount = 0;
-            this.lastFrameTime = now;
             this.fpsDisplay.innerHTML = `FPS: ${this.fps}`;
-            
-
+    
+            this.lastFrameTime = perfNow;
+            this.frameCount = 0;
         }
-
-        const speed = this.skier.getCurrentSpeed() ? this.skier.getCurrentSpeed() : 0;
-        const speedKmH = Math.round(speed * 3.6);
-        this.speedText.innerHTML = `${speedKmH} km/h`;
-
+    
+        // Update skier HUD (score) only if changed
+        for (let i = 0; i < this.skiers.length; i++) {
+            const skier = this.skiers[i];
+            const scoreText = `Score: ${skier.score}`;
+            if (this.skierHud[i].innerHTML !== scoreText) {
+                this.skierHud[i].innerHTML = scoreText;
+            }
+        }
+    
+        // Update Speed and Charge HUD
+        const currentSpeed = this.skier.getCurrentSpeed() || 0;
+        const speedKmH = Math.round(currentSpeed * 3.6);
+    
+        if (this.lastSpeedKmH !== speedKmH) {
+            this.lastSpeedKmH = speedKmH;
+            this.speedText.innerHTML = `${speedKmH} km/h`;
+    
+            const clampedSpeed = Math.min(speedKmH, 300);
+            const angle = (clampedSpeed / 300) * 270 - 135;
+            this.speedNeedle.style.transform = `rotate(${angle}deg)`;
+        }
+    
         const chargingPercentage = Math.min(50, 10 * this.skier.timeCharging);
         this.updateChargeBar(chargingPercentage);
-
-
-        // Clamp and map speed to angle (max 100 km/h = 270° rotation)
-        const clampedSpeed = Math.min(speedKmH, 300);
-        const angle = (clampedSpeed / 300) * 270 - 135; // map [0, 100] to [-135°, +135°]
-        this.speedNeedle.style.transform = `rotate(${angle}deg)`;
-
+    
+        // Multi-view rendering
         const width = window.innerWidth;
         const height = window.innerHeight;
-
+    
+        const cols = Math.ceil(Math.sqrt(this.skiers.length));
+        const rows = Math.ceil(this.skiers.length / cols);
+        const viewWidth = width / cols;
+        const viewHeight = height / rows;
+    
         this.renderer.setScissorTest(true);
-        
-            // Calculate the number of rows and columns based on the number of players
-            const cols = Math.ceil(Math.sqrt(this.skiers.length));
-            const rows = Math.ceil(this.skiers.length / cols);
-        
-            // Calculate viewport dimensions for each split-screen section
-            const viewWidth = width / cols;
-            const viewHeight = height / rows;
-        
-            // Iterate through each skier and render the scene from their respective camera
-            for (let i = 0; i < this.skiers.length; i++) {
-                const col = i % cols; // Column position for this skier
-                const row = Math.floor(i / cols); // Row position for this skier
-        
-                // Calculate the top-left corner of the viewport for this skier
-                const left = col * viewWidth;
-                const top = row * viewHeight;
-        
-                // Set the viewport and scissor area for rendering
-                this.renderer.setViewport(left, top, viewWidth, viewHeight);
-                this.renderer.setScissor(left, top, viewWidth, viewHeight);
-                this.renderer.setScissorTest(true);
-
-                //console.log("skier", this.skiers[i]);
-                //console.log("skier velocity", this.skiers[i]._velocity);
-                //console.log("sun", this.sun);
-                this.fog.update(this.skiers[i], this.sun.mesh);
-                
-        
-                // Render the scene from the skier's camera
-                this.renderer.render(this.sceneGraph, this.allCameras[i+1]);
-            }
-        
-            // Reset scissor test for UI rendering (if needed)
-            this.renderer.setScissorTest(false);
-        
-
+    
+        for (let i = 0; i < this.skiers.length; i++) {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const left = col * viewWidth;
+            const top = row * viewHeight;
+    
+            this.renderer.setViewport(left, top, viewWidth, viewHeight);
+            this.renderer.setScissor(left, top, viewWidth, viewHeight);
+    
+            this.fog.update(this.skiers[i], this.sun.mesh);
+            //console.log("cameras", this.allCameras);
+            //console.log("curCamera", this.skiers[i].curCamera);
+            this.renderer.render(this.sceneGraph, this.skiers[i].getCamera());
+        }
+    
         this.renderer.setScissorTest(false);
     }
+
+    tutorial() {
+        if (this.numberPlayers == 1) {
+            const tutorialText = document.createElement("div");
+            tutorialText.id = "tutorialText";
+            tutorialText.style.position = "absolute";
+            tutorialText.style.top = "50%";
+            tutorialText.style.left = "50%";
+            tutorialText.style.transform = "translate(-50%, -50%)";
+            tutorialText.style.color = "white";
+            tutorialText.style.background = "rgba(0,0,0,0.7)";
+            tutorialText.style.padding = "5px";
+            tutorialText.style.fontFamily = "Arial";
+            tutorialText.style.fontSize = "24px";
+            tutorialText.style.zIndex = "1000";
+            if (this.skiers[0].mesh.position.z > 0 && this.skiers[0].mesh.position.z < 100) {
+                // show tutorial text
+                tutorialText.innerHTML = "Use WASD to move and Space to charge!";
+                document.body.appendChild(tutorialText);
+            }
+            else if (this.skiers[0].mesh.position.z > 100 && this.skiers[0].mesh.position.z < 200) {
+                // show tutorial text
+                tutorialText.innerHTML = "Pass on the right of the blue gates and on the left of the red gates to earn points!";
+                document.body.appendChild(tutorialText);
+            }
+            else {
+                const tutorialText = document.getElementById("tutorialText");
+                if (tutorialText) {
+                    tutorialText.remove();
+                }
+            }
+        }
+    }
+    
 
     _Step(timeElapsed) {
         const timeElapsedS = timeElapsed * 0.001;
@@ -550,6 +553,7 @@ export default class GameWorld {
               }
                 
               this.render();
+              this.tutorial();
               this._Step(t - this._previousRAF);
               this._previousRAF = t;
               this._RAF();

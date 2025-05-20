@@ -47,6 +47,7 @@ export default class Mountain {
         this.checkedGates = this.gates.clone().children;
         this.mesh.add(this.generateRocks());
         this.mesh.add(this.generateTrees());
+        //this.generateSpotlight();
         //this.mesh.rotateOnAxis(new THREE.Vector3(0.1, 0, 0), this.steepness);
         //console.log("Mountain generated in " + (Date.now() - startGenerating) + "ms");
     }
@@ -233,7 +234,7 @@ export default class Mountain {
     generateSpotlight() {
         for (let i = 0; i < 3; i++) {
             const spotlight = new SpotLightModel().getObject();
-            spotlight.position.set(Math.sign(Math.random() - 0.5) * this.size / 2 - (Math.random() * 10), Math.random() * this.size - this.size / 2, 6);
+            spotlight.position.set(Math.sign(Math.random() - 0.5) * this.size / 2 - (Math.random() * 20), Math.random() * this.size - this.size / 2, this.heightAtPoint(spotlight.position.x, spotlight.position.z) + 1);
             spotlight.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
             spotlight.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 2);
             this.mesh.add(spotlight);
@@ -241,10 +242,10 @@ export default class Mountain {
     }
 
     checkSkierScore(skier) {
-        console.log(this.checkedGates);
-        console.log(this.checkedGates[skier]);
-        console.log(this.checkedGates[skier] == undefined);
-        console.log(this.checkedGates[skier] != undefined);
+        //console.log(this.checkedGates);
+        //console.log(this.checkedGates[skier]);
+        //console.log(this.checkedGates[skier] == undefined);
+        //console.log(this.checkedGates[skier] != undefined);
         if (this.checkedGates[skier] === undefined) {
             this.skiers.push(skier);
             this.checkedGates[skier] = this.gates.clone().children;

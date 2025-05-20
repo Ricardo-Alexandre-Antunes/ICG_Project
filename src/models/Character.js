@@ -1,19 +1,48 @@
 import * as THREE from "three";
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import * as keyCodes from '../keys.js';
+import FirstPersonCamera from '../cameras/FirstPersonCamera.js';
+import ThirdPersonCamera from "../cameras/ThirdPersonCamera.js";
 
+const ACCELERATE = 0;
+const DECELERATE = 2;
+const TURN_LEFT = 1;
+const TURN_RIGHT = 3;
+const JUMP = 4;
+const SWITCH_CAMERA = 5;
 
 export default class Character_Ski {
-    constructor(surface, name="Skier") {
+    constructor(surface, name="Skier", controls=[keyCodes.W, keyCodes.A, keyCodes.S, keyCodes.D, keyCodes.SPACE, keyCodes.C]) {
         this.start = Date.now();
+        this.createMesh(name);
         const document = window.document;
         //keys
+        this.keyButtons = controls;
         this.keys = {
             forward: false,
             backward: false,
             left: false,
             right: false
         };
+
+        // cameras
+        this.thirdPerson = true;
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
+        const params = 
+        {
+            camera: camera,
+            target: this.mesh
+        };
+        this.thirdPersonCamera = new ThirdPersonCamera(params);
+        const camera2 = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 8, 5500);
+        this.firstPersonCamera = new FirstPersonCamera(camera2, this.attachCamera(camera2));
+        this.curCamera = this.thirdPersonCamera;
+
+
+
+        this.thirdPerson = true;
         this.surface = surface;
         this._decceleration = new THREE.Vector3(-0.105, 3, -0.06);
         this._acceleration = new THREE.Vector3(0, 0, 0);
@@ -33,7 +62,10 @@ export default class Character_Ski {
         this.rotationPower = 1;
 
         this.lastScoreUpdate = Date.now();
-        this.createMesh(name);
+
+
+        this.mesh.castShadow = true;
+        this.mesh.receiveShadow = true;
 
         this.snowParticles = [];
         this._InitSnowParticles();
@@ -47,6 +79,26 @@ export default class Character_Ski {
             this.onkeyup(event);
         });
         
+    }
+
+    switchCamera() {
+        if (this.thirdPerson) {
+            console.log("switch to first person");
+            this.curCamera = this.firstPersonCamera;
+            this.thirdPerson = false;
+        }
+        else {
+            console.log("switch to third person");
+            this.curCamera = this.thirdPersonCamera;
+            const head = this.mesh.children[0].children[1];
+            head.rotateOnAxis(new THREE.Vector3(0, 0, 0), Math.PI);
+            this.thirdPersonCamera.resetPosition();
+            this.thirdPerson = true;
+        }
+    }
+
+    getCamera() {
+        return this.curCamera._camera;
     }
 
     _InitSnowParticles() {
@@ -114,24 +166,29 @@ export default class Character_Ski {
     onkeydown(event) {
         switch (event.keyCode) {
             // w key
-            case 87:
+            case this.keyButtons[ACCELERATE]:
                 this.keys.forward = true;
                 break;
             // a key
-            case 65:
+            case this.keyButtons[TURN_LEFT]:
                 this.keys.left = true;
                 break;
             // d key
-            case 68:
+            case this.keyButtons[TURN_RIGHT]:
                 this.keys.right = true;
                 break;
             // s key
-            case 83:
+            case this.keyButtons[DECELERATE]:
                 this.keys.backward = true;
                 break;
             // space key
-            case 32:
+            case this.keyButtons[JUMP]:
                 this.keys.space = true;
+                break;
+            case this.keyButtons[SWITCH_CAMERA]:
+                this.switchCamera();
+                break;
+            default:
                 break;
         }
     }
@@ -139,24 +196,26 @@ export default class Character_Ski {
     onkeyup(event) {
         switch (event.keyCode) {
             // w key
-            case 87:
+            case this.keyButtons[ACCELERATE]:
                 this.keys.forward = false;
                 break;
             // a key
-            case 65:
+            case this.keyButtons[TURN_LEFT]:
                 this.keys.left = false;
                 break;
             // d key
-            case 68:
+            case this.keyButtons[TURN_RIGHT]:
                 this.keys.right = false;
                 break;
             // s key
-            case 83:
+            case this.keyButtons[DECELERATE]:
                 this.keys.backward = false;
                 break;
             // space key
-            case 32:
+            case this.keyButtons[JUMP]:
                 this.keys.space = false;
+                break;
+            default:
                 break;
         }
     }
@@ -178,6 +237,8 @@ export default class Character_Ski {
     }
 
     Update(timeInSeconds) {
+        this.curCamera.Update(timeInSeconds);
+        //console.log(this.curCamera._camera.position);
         if (isNaN(timeInSeconds)) {
             return;
         }
@@ -583,10 +644,26 @@ export default class Character_Ski {
         this.mesh.children[8].rotation.z = -0.3;
         this.mesh.children[9].rotation.z = -0.3;
     }
+
+    attachCamera(camera) {
+        // Attach the camera to the skier's head
+        const head = this.mesh.children[0].children[1];
+        head.add(camera);
+        return head;
+    }
+
+    detachCamera(camera) {
+        // Detach the camera from the skier's head
+        const head = this.mesh.children[0].children[1];
+        head.remove(camera);
+        return head;
+    }
+
     
 
 
     createMesh(name="Skier") {
+
         // Main skier mesh for position and movement
         this.mesh = new THREE.Group(); // World position & movement
     
@@ -707,9 +784,9 @@ export default class Character_Ski {
     
         // Create light source
         var light = new THREE.SpotLight(0xffffff, 10);
-        light.decay = 0.6;
+        light.decay = 0.1;
         light.customDistanceMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        light.distance = 200;
+        light.distance = 600;
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);
@@ -722,6 +799,7 @@ export default class Character_Ski {
         headbandLight.name = "headbandLight";
     
         head.add(headbandLight);
+        //console.log(this.mesh);
 
     }
     

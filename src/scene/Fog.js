@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 export class Fog {
-    constructor(scene) {
+    constructor(scene, doSnowstorm = true) {
         this.scene = scene;
+        this.doSnowstorm = doSnowstorm;
         this.initFog();
-        this.initSnowstorm();
+        if (this.doSnowstorm) this.initSnowstorm();
     }
 
     initFog() {
@@ -13,6 +14,8 @@ export class Fog {
         this.scene.background = new THREE.Color(this.fogColor);
         this.fogDayColor = new THREE.Color(0x96accd);   // light blue
         this.fogNightColor = new THREE.Color(0x292625); // dark blueish/black
+        this.baseFog = 0.002;
+        this.multiplier = 0.00001;
 
     }
 
@@ -32,7 +35,7 @@ export class Fog {
             positions[i * 3 + 2] = z;
 
             velocities[i * 3] = (Math.random() - 0.5) * 0.5;
-            velocities[i * 3 + 1] = -Math.random();
+            velocities[i * 3 + 1] = -Math.random() * 3; // Falling down
             velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
 
             scales[i] = Math.random() * 0.5 + 4.5; // Random scale between 0.5 and 1.0
@@ -47,28 +50,38 @@ export class Fog {
 
         const material = new THREE.PointsMaterial({
             color: 0xffffff,
-            size: 1.5,
+            size: 2.5,
             transparent: true,
             opacity: 0.5,
             depthWrite: false,
             fog: true,
             blending: THREE.AdditiveBlending,
         });
+        this.material = material;
 
-        this.snowstorm = new THREE.Points(geometry, material);
+        this.snowstorm = new THREE.Points(geometry, this.material);
         this.scene.add(this.snowstorm);
     }
 
     update(skier, sun) {
+        if (skier.thirdPerson == true) {
+            this.material.size = 2.5;
+            this.baseFog = 0.002;
+            this.multiplier = 0.00001;
+        }
+        else {
+            this.material.size = 15.5;
+            this.baseFog = 0.0006;
+            this.multiplier = 0.000006;
+        }
         const skierSpeed = skier._velocity.length();
     
         // Fog distance
         this.prevDensity = this.scene.fog.density;
-        this.scene.fog.density = THREE.MathUtils.lerp(this.prevDensity, 0.002 + skierSpeed * 0.00005, 0.1);
+        this.scene.fog.density = THREE.MathUtils.lerp(this.prevDensity, this.baseFog + skierSpeed * this.multiplier, 0.1);
     
         // Adjust snowstorm opacity and density based on skier speed
         const snowDensity = Math.min(0.5 + skierSpeed * 0.02, 1.0); // Increase density with speed
-        this.snowstorm.material.opacity = Math.min(1.0, 0.4 + skierSpeed * 0.03 + snowDensity * 0.2);
     
         const sunHeight = sun.position.y;
         const factor = THREE.MathUtils.clamp(sunHeight / 200, 0, 1);
@@ -76,29 +89,31 @@ export class Fog {
         this.scene.fog.color.copy(this.fogNightColor).lerp(this.fogDayColor, factor);
         this.scene.background.copy(this.fogNightColor).lerp(this.fogDayColor, factor);
     
-        // Move snow to skier position
-        this.snowstorm.position.copy(skier.mesh.position);
-    
-        // Animate snow particles
-        const pos = this.snowstorm.geometry.attributes.position.array;
-        const vel = this.snowstorm.geometry.attributes.velocity.array;
-    
-        for (let i = 0; i < pos.length; i += 3) {
-            pos[i] += vel[i] + 0.1 * Math.sin(Date.now() * 0.001 + i);  // wind sway
-            pos[i + 1] += vel[i + 1] - skierSpeed * 0.01;               // fall
-    
-            // Adjust snow density
-            pos[i + 2] += -vel[i + 2] * snowDensity;
-    
-            // Recycle snow particles when they fall below a threshold
-            if (pos[i + 1] < -100) {
-                pos[i] = (Math.random() - 0.5) * 800;
-                pos[i + 1] = 400 + Math.random() * 200;
-                pos[i + 2] = (Math.random() - 0.5) * 800;
+        if (this.doSnowstorm) {
+            // Move snow to skier position
+            this.snowstorm.position.copy(skier.mesh.position);
+        
+            // Animate snow particles
+            const pos = this.snowstorm.geometry.attributes.position.array;
+            const vel = this.snowstorm.geometry.attributes.velocity.array;
+        
+            for (let i = 0; i < pos.length; i += 3) {
+                pos[i] += vel[i] + 0.1 * Math.sin(Date.now() * 0.001 + i);  // wind sway
+                pos[i + 1] += vel[i + 1] - skierSpeed * 0.01;               // fall
+        
+                // Adjust snow density
+                pos[i + 2] += -vel[i + 2] * snowDensity;
+        
+                // Recycle snow particles when they fall below a threshold
+                if (pos[i + 1] < -100) {
+                    pos[i] = (Math.random() - 0.5) * 800;
+                    pos[i + 1] = 400 + Math.random() * 200;
+                    pos[i + 2] = (Math.random() - 0.5) * 800;
+                }
             }
+        
+            this.snowstorm.geometry.attributes.position.needsUpdate = true;
         }
-    
-        this.snowstorm.geometry.attributes.position.needsUpdate = true;
     }
     
     

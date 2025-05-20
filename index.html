@@ -1,36 +1,315 @@
 <!DOCTYPE html>
-
 <html lang="en">
-<!--
-
-		Example adapted from Damien Rohmer tutorial
-
-		https://imagecomputing.net/damien.rohmer/teaching/2019_2020/semester_1/MPRI_2-39/practice/threejs/content/000_threejs_tutorial/index.html
-
-		J. Madeira - April 2021; Updated - March 2024
-
--->
-
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alpine Skier</title>
 
-    <title> 3D scene </title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
 
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://threejs.org/build/three.module.js",
+        "three/addons/": "https://threejs.org/examples/jsm/"
+      }
+    }
+  </script>
 
-    <script type="importmap">
-        {
-          "imports": {
-            "three": "https://threejs.org/build/three.module.js",
-            "three/addons/": "https://threejs.org/examples/jsm/"
-          }
-        }
-      </script>
-    <script type="module" src="src/scene/test_main.js"></script>
+  <style>
+    input.conflict {
+      border: 2px solid red;
+      background-color: #ffe5e5;
+    }
+    .options-menu {
+      display: none;
+      position: fixed;
+      top: 10vh;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      padding: 2vw;
+      border-radius: 12px;
+      width: 40vw;
+      color: white;
+      z-index: 9999;
+    }
+    .options-menu h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .options-menu label {
+      display: block;
+      margin-top: 1rem;
+    }
+    .options-menu input[type=range] {
+      width: 100%;
+    }
+    .options-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+    }
+  </style>
 </head>
-
 <body>
-    <div id="MainScene"></div>
+  <div id="background"></div>
+  <canvas id="snowCanvas"></canvas>
+
+  <!-- MENU OVERLAY -->
+  <div id="MenuOverlay">
+    <h1>Ski Rush</h1>
+
+    <label for="gameMode">Choose Game Mode:</label>
+    <select id="gameMode">
+      <option value="slalom">Slalom</option>
+      <option value="checkpoint">Checkpoint Attack</option>
+      <option value="endurance">Endurance</option>
+    </select>
+
+    <label for="playerCount">Players:</label>
+    <select id="playerCount">
+      <option value="1">1 Player</option>
+      <option value="2">2 Players</option>
+    </select>
+
+    <div class="controls-grid">
+      <div class="control-set" id="player1Controls">
+        <h3>🎮 Player 1 Controls</h3>
+        <label>Accelerate: <input type="text" id="p1_accelerate" value="W" readonly /></label>
+        <label>Brake: <input type="text" id="p1_brake" value="S" readonly /></label>
+        <label>Turn Left: <input type="text" id="p1_left" value="A" readonly /></label>
+        <label>Turn Right: <input type="text" id="p1_right" value="D" readonly /></label>
+        <label>Jump: <input type="text" id="p1_jump" value="SPACE" readonly /></label>
+      </div>
+
+      <div class="control-set" id="player2Controls" style="display: none;">
+        <h3>🎮 Player 2 Controls</h3>
+        <label>Accelerate: <input type="text" id="p2_accelerate" value="ARROWUP" readonly /></label>
+        <label>Brake: <input type="text" id="p2_brake" value="ARROWDOWN" readonly /></label>
+        <label>Turn Left: <input type="text" id="p2_left" value="ARROWLEFT" readonly /></label>
+        <label>Turn Right: <input type="text" id="p2_right" value="ARROWRIGHT" readonly /></label>
+        <label>Jump: <input type="text" id="p2_jump" value="ENTER" readonly /></label>
+      </div>
+    </div>
+
+    <label><input type="checkbox" id="musicToggle" checked /> 🎵 Background Music</label>
+
+    <button id="startButton">Start Skiing!</button>
+    <button id="optionsButton">Options</button>
+  </div>
+
+  <!-- OPTIONS MENU -->
+  <div class="options-menu" id="OptionsMenu">
+    <h2>⚙️ Game Options</h2>
+
+    <label>🎯 Difficulty:
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+      </select>
+    </label>
+
+    <label>🌅 Day/Night Cycle Speed:
+      <input type="range" id="dayNightSpeed" min="0" max="100" value="50" />
+    </label>
+
+    <label>🌫️ Fog Density:
+      <input type="range" id="fogDensity" min="0" max="100" value="30" />
+    </label>
+
+    <label>↪️ Turning Speed:
+      <input type="range" id="turningSpeed" min="1" max="10" value="5" />
+    </label>
+
+    <div class="options-buttons">
+      <button id="saveOptions">Save</button>
+      <button id="cancelOptions">Back</button>
+    </div>
+  </div>
+
+  <div id="MainScene" style="display: none;"></div>
+
+  <audio id="bgMusic" loop preload="auto">
+    <source src="assets/ski_theme.mp3" type="audio/mpeg" />
+  </audio>
+
+  <script type="module">
+    const bgMusic = document.getElementById('bgMusic');
+    let musicStarted = false;
+
+    const gameSettings = {
+      difficulty: "normal",
+      dayNightSpeed: 50,
+      fogDensity: 30,
+      turningSpeed: 5
+    };
+
+    const tryPlayMusic = () => {
+      if (!musicStarted && document.getElementById('musicToggle').checked) {
+        bgMusic.play().catch(() => {});
+        musicStarted = true;
+      }
+    };
+    document.body.addEventListener('click', tryPlayMusic, { once: true });
+
+    document.getElementById('musicToggle').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        bgMusic.play().catch(() => {});
+      } else {
+        bgMusic.pause();
+      }
+    });
+
+    document.getElementById('playerCount').addEventListener('change', () => {
+      const isTwoPlayer = document.getElementById('playerCount').value === '2';
+      document.getElementById('player2Controls').style.display = isTwoPlayer ? 'block' : 'none';
+      validateDuplicates();
+    });
+
+    document.getElementById('optionsButton').addEventListener('click', () => {
+      document.getElementById('MenuOverlay').style.display = 'none';
+      document.getElementById('OptionsMenu').style.display = 'block';
+    });
+
+    document.getElementById('cancelOptions').addEventListener('click', () => {
+      document.getElementById('OptionsMenu').style.display = 'none';
+      document.getElementById('MenuOverlay').style.display = 'block';
+    });
+
+    document.getElementById('saveOptions').addEventListener('click', () => {
+      gameSettings.difficulty = document.getElementById('difficulty').value;
+      gameSettings.dayNightSpeed = parseInt(document.getElementById('dayNightSpeed').value);
+      gameSettings.fogDensity = parseInt(document.getElementById('fogDensity').value);
+      gameSettings.turningSpeed = parseInt(document.getElementById('turningSpeed').value);
+
+      document.getElementById('OptionsMenu').style.display = 'none';
+      document.getElementById('MenuOverlay').style.display = 'block';
+    });
+
+    document.getElementById('startButton').addEventListener('click', async () => {
+      const conflictInputs = document.querySelectorAll('.controls-grid input.conflict');
+      if (conflictInputs.length > 0) {
+        alert("Please resolve duplicate key bindings before starting the game.");
+        return;
+      }
+
+      const mode = document.getElementById('gameMode').value;
+      const playerCount = parseInt(document.getElementById('playerCount').value, 10);
+      const controls = {
+        player1: {
+          accelerate: document.getElementById('p1_accelerate').value,
+          brake: document.getElementById('p1_brake').value,
+          left: document.getElementById('p1_left').value,
+          right: document.getElementById('p1_right').value,
+          jump: document.getElementById('p1_jump').value
+        }
+      };
+      if (playerCount === 2) {
+        controls.player2 = {
+          accelerate: document.getElementById('p2_accelerate').value,
+          brake: document.getElementById('p2_brake').value,
+          left: document.getElementById('p2_left').value,
+          right: document.getElementById('p2_right').value,
+          jump: document.getElementById('p2_jump').value
+        };
+      }
+
+      document.getElementById('MenuOverlay').style.display = 'none';
+      document.getElementById('MainScene').style.display = 'block';
+      document.getElementById('background').style.display = 'none';
+      document.getElementById('snowCanvas').style.display = 'none';
+
+      const module = await import('./src/scene/test_main.js');
+    });
+
+    // Snow & Keybinding logic...
+    const canvas = document.getElementById('snowCanvas');
+    const ctx = canvas.getContext('2d');
+    const snowflakes = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function createSnowflake() {
+      snowflakes.push({
+        x: Math.random() * canvas.width,
+        y: 0,
+        radius: Math.random() * 4 + 1,
+        speed: Math.random() * 3 + 1
+      });
+    }
+
+    function updateSnowflakes() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      snowflakes.forEach((flake, index) => {
+        flake.y += flake.speed;
+        if (flake.y > canvas.height) snowflakes.splice(index, 1);
+        ctx.beginPath();
+        ctx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+      });
+    }
+
+    setInterval(() => {
+      createSnowflake();
+      updateSnowflakes();
+    }, 50);
+
+    // Keybindings & Conflict logic...
+    const bindableInputs = document.querySelectorAll('.controls-grid input');
+
+    function validateDuplicates() {
+      const keyMap = {};
+      bindableInputs.forEach(input => {
+        const key = input.value.toUpperCase();
+        if (!keyMap[key]) {
+          keyMap[key] = [];
+        }
+        keyMap[key].push(input);
+      });
+
+      bindableInputs.forEach(input => {
+        const key = input.value.toUpperCase();
+        const duplicates = keyMap[key];
+        if (duplicates.length > 1) {
+          input.classList.add('conflict');
+          input.title = `Key '${key}' is used multiple times!`;
+        } else {
+          input.classList.remove('conflict');
+          input.title = '';
+        }
+      });
+    }
+
+    bindableInputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        const keyCapture = (e) => {
+          e.preventDefault();
+          let keyLabel = e.code === 'Space' ? 'SPACE' :
+                         e.key.startsWith('Arrow') ? e.key.toUpperCase() :
+                         e.key.length === 1 ? e.key.toUpperCase() : e.key.toUpperCase();
+
+          input.value = keyLabel;
+          validateDuplicates();
+          window.removeEventListener('keydown', keyCapture);
+          input.blur();
+        };
+        window.addEventListener('keydown', keyCapture);
+      });
+
+      input.addEventListener('keydown', e => e.preventDefault());
+    });
+
+    validateDuplicates();
+  </script>
 </body>
+</html>

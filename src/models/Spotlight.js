@@ -20,7 +20,7 @@ export default class SpotlightModel {
 
     createReflector() {
         const reflectorGeometry = new THREE.CylinderGeometry(2.5, 2.6, 0.5, 32);
-        const reflectorMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 });
+        const reflectorMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.2 });
         const reflector = new THREE.Mesh(reflectorGeometry, reflectorMaterial);
         reflector.position.z = 2.75;
         reflector.rotation.x = Math.PI / 2;
@@ -46,7 +46,7 @@ export default class SpotlightModel {
 
     createLightPanel() {
         const panelGeometry = new THREE.CircleGeometry(2);
-        const panelMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, metalness: 1 });
+        const panelMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const panel = new THREE.Mesh(panelGeometry, panelMaterial);
         panel.position.set(0, 0, 3);
         this.group.add(panel);

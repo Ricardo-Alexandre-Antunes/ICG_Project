@@ -63,7 +63,7 @@ export default class Tree {
     
             dummy.position.set(x, y, z);
             dummy.rotation.y = Math.random() * Math.PI * 2;
-            const scale = Math.random() * 0.5 + 0.3;
+            const scale = Math.random() * 0.2 + 0.4;
             dummy.scale.setScalar(scale);
     
             dummy.updateMatrix();

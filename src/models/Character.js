@@ -15,6 +15,8 @@ const SWITCH_CAMERA = 5;
 export default class Character_Ski {
     constructor(surface, name="Skier", controls=[keyCodes.W, keyCodes.A, keyCodes.S, keyCodes.D, keyCodes.SPACE, keyCodes.C]) {
         this.start = Date.now();
+        this._averageSpeed = 0;
+        this._totalTime = 0;
         this.createMesh(name);
         const document = window.document;
         //keys
@@ -233,10 +235,24 @@ export default class Character_Ski {
         const velocity = this._velocity.clone();
         const velocityAlongGround = velocity.clone().sub(this.curGround.face.normal.clone().multiplyScalar(velocity.dot(this.curGround.face.normal)));
         const speed = velocityAlongGround.length();
-        return speed / 2;
+        return speed * 3.6 / 2;
+    }
+
+    getAverageSpeed(timeInSeconds) {
+        console.log("getAverageSpeed", timeInSeconds);
+        const currentSpeed = this.getCurrentSpeed();
+
+        // Weighted average formula:
+        // newAverage = (oldAverage * oldTime + currentSpeed * deltaTime) / (oldTime + deltaTime)
+        console.log("old average speed", this._averageSpeed);
+        console.log("numerator", this._averageSpeed * this._totalTime);
+        this._averageSpeed = (this._averageSpeed * this._totalTime + currentSpeed * timeInSeconds) / (this._totalTime + timeInSeconds);
+        console.log("new average speed", this._averageSpeed);
+        this._totalTime += timeInSeconds;
     }
 
     Update(timeInSeconds) {
+
         this.curCamera.Update(timeInSeconds);
         //console.log(this.curCamera._camera.position);
         if (isNaN(timeInSeconds)) {
@@ -277,6 +293,7 @@ export default class Character_Ski {
         if (this.onGround && this._velocity.lengthSq() > 0) {
             this._EmitSnowParticles();
         }
+        this.getAverageSpeed(timeInSeconds);
     
         // Clamp X position
         if (this.mesh.position.x > 220) this.mesh.position.x = 220;
@@ -675,8 +692,13 @@ export default class Character_Ski {
         this.mesh.add(new THREE.AxesHelper(10));
     
         // Create the body
+        const loader = new THREE.TextureLoader();
+        const jacketTexture = loader.load("src/assets/jacket.avif");
+        jacketTexture.wrapS = THREE.RepeatWrapping;
+        jacketTexture.wrapT = THREE.RepeatWrapping;
+        jacketTexture.repeat.set(5, 5);
         var bodyGeom = new THREE.CylinderGeometry(3.5, 3, 10, 4, 1);
-        var bodyMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
+        var bodyMat = new THREE.MeshPhongMaterial({ map: jacketTexture, flatShading: true });
         var body = new THREE.Mesh(bodyGeom, bodyMat);
         body.name = "body";
         body.position.set(0, 0, 0);
@@ -684,10 +706,25 @@ export default class Character_Ski {
     
         // Create the head
         var headGeom = new THREE.SphereGeometry(3, 32, 32);
-        var headMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
+        var headMat = new THREE.MeshPhongMaterial({ color: 0xc68642, flatShading: true });
         var head = new THREE.Mesh(headGeom, headMat);
         head.name = "head";
         head.position.set(0, 8, 0);
+
+        // Create a hat (example: a cylinder)
+        const hatBrimGeom = new THREE.CylinderGeometry(4, 4, 0.5, 32);
+        const hatTopGeom = new THREE.CylinderGeometry(2.5, 2.5, 3, 32);
+        const hatMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
+
+        const hatBrim = new THREE.Mesh(hatBrimGeom, hatMat);
+        hatBrim.position.set(0, 1.5, 0);
+
+        const hatTop = new THREE.Mesh(hatTopGeom, hatMat);
+        hatTop.position.set(0, 2.5, 0);
+
+        head.add(hatBrim);
+        head.add(hatTop);
+
         this.visualGroup.add(head);
     
         // Create the eyes
@@ -704,7 +741,7 @@ export default class Character_Ski {
     
         // Create the arms
         var armGeom = new THREE.CylinderGeometry(1, 1, 7, 4, 1);
-        var armMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
+        var armMat = new THREE.MeshPhongMaterial({ map: jacketTexture, flatShading: true });
         var armR = new THREE.Mesh(armGeom, armMat);
         armR.position.set(3.5, 1.5, 0);
         var armL = armR.clone();
@@ -720,7 +757,7 @@ export default class Character_Ski {
     
         // Create the legs
         var legGeom = new THREE.CylinderGeometry(1, 1, 10, 4, 1);
-        var legMat = new THREE.MeshPhongMaterial({ color: 0x0000ff, flatShading: true });
+        var legMat = new THREE.MeshPhongMaterial({ map: jacketTexture, flatShading: true });
         var legR = new THREE.Mesh(legGeom, legMat);
         legR.position.set(2, -5, 0);
         var legL = legR.clone();
@@ -784,7 +821,7 @@ export default class Character_Ski {
     
         // Create light source
         var light = new THREE.SpotLight(0xffffff, 10);
-        light.decay = 0.1;
+        light.decay = 0.8;
         light.customDistanceMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
         light.distance = 600;
         light.target = new THREE.Object3D();

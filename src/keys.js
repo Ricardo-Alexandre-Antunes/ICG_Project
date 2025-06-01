@@ -6,10 +6,10 @@ export const CAPS_LOCK = 20;
 export const ESC = 27;
 
 // Navigation Keys
-export const LEFT = 37;
-export const UP = 38;
-export const RIGHT = 39;
-export const DOWN = 40;
+export const ARROWLEFT = 37;
+export const ARROWUP = 38;
+export const ARROWRIGHT = 39;
+export const ARROWDOWN = 40;
 export const PAGE_UP = 33;
 export const PAGE_DOWN = 34;
 export const HOME = 36;
@@ -110,3 +110,114 @@ export const BACK_SLASH = 220;
 export const CLOSE_BRACKET = 221;
 export const SINGLE_QUOTE = 222;
 export const BACKTICK = 192;
+
+export const codeToKey = {
+    [SHIFT]: 'Shift',
+    [CTRL]: 'Control',
+    [ALT]: 'Alt',
+    [CAPS_LOCK]: 'CapsLock',
+    [ESC]: 'Escape',
+    
+    [ARROWLEFT]: 'ArrowLeft',
+    [ARROWUP]: 'ArrowUp',
+    [ARROWRIGHT]: 'ArrowRight',
+    [ARROWDOWN]: 'ArrowDown',
+    [PAGE_UP]: 'PageUp',
+    [PAGE_DOWN]: 'PageDown',
+    [HOME]: 'Home',
+    [END]: 'End',
+    [INSERT]: 'Insert',
+    [DELETE]: 'Delete',
+    
+    [F1]: 'F1',
+    [F2]: 'F2',
+    [F3]: 'F3',
+    [F4]: 'F4',
+    [F5]: 'F5',
+    [F6]: 'F6',
+    [F7]: 'F7',
+    [F8]: 'F8',
+    [F9]: 'F9',
+    [F10]: 'F10',
+    [F11]: 'F11',
+    [F12]: 'F12',
+    
+    [BACKSPACE]: 'Backspace',
+    [TAB]: 'Tab',
+    [ENTER]: 'Enter',
+    [PAUSE]: 'Pause',
+    [PRINT_SCREEN]: 'PrintScreen',
+    [NUM_LOCK]: 'NumLock',
+    [SCROLL_LOCK]: 'ScrollLock',
+    [SPACE]: 'Space',
+    
+    // Top row numbers
+    [DIGIT_0]: '0', 
+    [DIGIT_1]: '1', 
+    [DIGIT_2]: '2', 
+    [DIGIT_3]: '3', 
+    [DIGIT_4]: '4', 
+    [DIGIT_5]: '5', 
+    [DIGIT_6]: '6', 
+    [DIGIT_7]: '7', 
+    [DIGIT_8]: '8', 
+    [DIGIT_9]: '9',
+    
+    // Letters
+    [A]: 'A',
+    [B]: 'B',
+    [C]: 'C',
+    [D]: 'D',
+    [E]: 'E',
+    [F]: 'F',
+    [G]: 'G',
+    [H]: 'H',
+    [I]: 'I',
+    [J]: 'J',
+    [K]: 'K',
+    [L]: 'L',
+    [M]: 'M',
+    [N]: 'N',
+    [O]: 'O',
+    [P]: 'P',
+    [Q]: 'Q',
+    [R]: 'R',
+    [S]: 'S',
+    [T]: 'T',
+    [U]: 'U',
+    [V]: 'V',
+    [W]: 'W',
+    [X]: 'X',
+    [Y]: 'Y',
+    [Z]: 'Z',
+
+    // Numpad keys
+    [NUMPAD_0]: 'Numpad0',
+    [NUMPAD_1]: 'Numpad1',
+    [NUMPAD_2]: 'Numpad2',
+    [NUMPAD_3]: 'Numpad3',
+    [NUMPAD_4]: 'Numpad4',
+    [NUMPAD_5]: 'Numpad5',
+    [NUMPAD_6]: 'Numpad6',
+    [NUMPAD_7]: 'Numpad7',
+    [NUMPAD_8]: 'Numpad8',
+    [NUMPAD_9]: 'Numpad9',
+    [NUMPAD_MULTIPLY]: 'NumpadMultiply',
+    [NUMPAD_ADD]: 'NumpadAdd',
+    [NUMPAD_SUBTRACT]: 'NumpadSubtract',
+    [NUMPAD_DECIMAL]: 'NumpadDecimal',
+    [NUMPAD_DIVIDE]: 'NumpadDivide',
+    // Punctuation and symbols
+    [SEMICOLON]: ';',
+    [EQUAL]: '=',
+    [COMMA]: ',',
+    [DASH]: '-',
+    [PERIOD]: '.',
+    [FORWARD_SLASH]: '/',
+    [OPEN_BRACKET]: '[',
+    [BACK_SLASH]: '\\',
+    [CLOSE_BRACKET]: ']',
+    [SINGLE_QUOTE]: '\'',
+    [BACKTICK]: '`',
+};
+

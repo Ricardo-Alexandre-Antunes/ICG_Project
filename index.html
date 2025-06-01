@@ -83,6 +83,7 @@
         <label>Turn Left: <input type="text" id="p1_left" value="A" readonly /></label>
         <label>Turn Right: <input type="text" id="p1_right" value="D" readonly /></label>
         <label>Jump: <input type="text" id="p1_jump" value="SPACE" readonly /></label>
+        <label>Camera: <input type="text" id="p1_camera" value="C" readonly /></label>
       </div>
 
       <div class="control-set" id="player2Controls" style="display: none;">
@@ -92,6 +93,7 @@
         <label>Turn Left: <input type="text" id="p2_left" value="ARROWLEFT" readonly /></label>
         <label>Turn Right: <input type="text" id="p2_right" value="ARROWRIGHT" readonly /></label>
         <label>Jump: <input type="text" id="p2_jump" value="ENTER" readonly /></label>
+        <label>Camera: <input type="text" id="p2_camera" value="V" readonly /></label>
       </div>
     </div>
 
@@ -138,6 +140,8 @@
   </audio>
 
   <script type="module">
+    import GameWorld from './src/scene/GameWorld.js';
+    import * as KEY_CODES from './src/keys.js';
     const bgMusic = document.getElementById('bgMusic');
     let musicStarted = false;
 
@@ -154,7 +158,6 @@
         musicStarted = true;
       }
     };
-    document.body.addEventListener('click', tryPlayMusic, { once: true });
 
     document.getElementById('musicToggle').addEventListener('change', (e) => {
       if (e.target.checked) {
@@ -199,31 +202,36 @@
 
       const mode = document.getElementById('gameMode').value;
       const playerCount = parseInt(document.getElementById('playerCount').value, 10);
-      const controls = {
-        player1: {
-          accelerate: document.getElementById('p1_accelerate').value,
-          brake: document.getElementById('p1_brake').value,
-          left: document.getElementById('p1_left').value,
-          right: document.getElementById('p1_right').value,
-          jump: document.getElementById('p1_jump').value
-        }
-      };
-      if (playerCount === 2) {
-        controls.player2 = {
-          accelerate: document.getElementById('p2_accelerate').value,
-          brake: document.getElementById('p2_brake').value,
-          left: document.getElementById('p2_left').value,
-          right: document.getElementById('p2_right').value,
-          jump: document.getElementById('p2_jump').value
-        };
+      console.log(playerCount);
+      const controls = [[
+          KEY_CODES[document.getElementById('p1_accelerate').value],
+          KEY_CODES[document.getElementById('p1_left').value],
+          KEY_CODES[document.getElementById('p1_brake').value],
+          KEY_CODES[document.getElementById('p1_right').value],
+          KEY_CODES[document.getElementById('p1_jump').value],
+          KEY_CODES[document.getElementById('p1_camera').value]
+        ]];
+      if (playerCount == 2) {
+        console.log('2 player mode');
+        console.log(controls, "before concat");
+        controls.push([
+          KEY_CODES[document.getElementById('p2_accelerate').value],
+          KEY_CODES[document.getElementById('p2_left').value],
+          KEY_CODES[document.getElementById('p2_brake').value],
+          KEY_CODES[document.getElementById('p2_right').value],
+          KEY_CODES[document.getElementById('p2_jump').value],
+          KEY_CODES[document.getElementById('p2_camera').value]
+        ]);
+        console.log(controls, "after concat");
       }
 
       document.getElementById('MenuOverlay').style.display = 'none';
       document.getElementById('MainScene').style.display = 'block';
       document.getElementById('background').style.display = 'none';
       document.getElementById('snowCanvas').style.display = 'none';
-
-      const module = await import('./src/scene/test_main.js');
+      console.log('Starting game with controls:', controls);
+      tryPlayMusic();
+      new GameWorld({numberPlayers: playerCount, controls: controls, mode: mode});
     });
 
     // Snow & Keybinding logic...

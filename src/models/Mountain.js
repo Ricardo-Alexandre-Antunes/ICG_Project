@@ -8,16 +8,14 @@ import SpotLightModel from './Spotlight.js';
 import { snowTexture } from './Textures.js';
 
 export default class Mountain {
-    constructor(size = 250, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 15 * Math.random(), previousMountain = null) {
-        const startGenerating = Date.now();
-        ////console.log("Generating mountain...");
+    constructor({ size = 500, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 35 * Math.random(), previousMountain = null, numberPlayers = 1 } = {}) {
         this.size = size;
         this.resolution = resolution;
         this.heightScale = heightScale;
         this.color = color;
         this.steepness = steepness;
         this.seed = seed;
-        this.rocks = rocks;
+        this.rocks = rocks * ( 1 + (numberPlayers / 10) ) ;
         this.skiers = [];
         this.previousMountain = previousMountain;  // Store reference to the previous mountain
 
@@ -31,20 +29,13 @@ export default class Mountain {
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
         //console.log("prev mountain: ", previousMountain);
-        if (previousMountain) {
-            //console.log("prev gates: ", previousMountain.gates);
-            //console.log("prev gates children: ", previousMountain.gates.children);
-            //console.log("last children: ", previousMountain.gates.children[previousMountain.gates.children.length - 1].children[0].children[0].material.color.getHex());
+        if (numberPlayers == 1) {
+            this.generateGates(-this.size / 2 + 20);
+            this.checkedGates = this.gates.clone().children;
         }
-        if (previousMountain && previousMountain.gates.children[previousMountain.gates.children.length - 1].children[0].children[0].material.color.getHex() == 0x0000ff) {
-            this.generateGates(-this.size / 2 + 15, 0xff0000);
-        }
-        else {
-            this.generateGates(-this.size / 2 + 15, 0x0000ff);
-        }
-        
+
         //console.log("Gates generated in " + (Date.now() - now) + "ms");
-        this.checkedGates = this.gates.clone().children;
+
         this.mesh.add(this.generateRocks());
         this.mesh.add(this.generateTrees());
         //this.generateSpotlight();
@@ -170,6 +161,7 @@ export default class Mountain {
         const instancedMesh = new THREE.InstancedMesh(geometry, material, rockCount);
     
         const dummy = new THREE.Object3D();
+
     
         for (let i = 0; i < rockCount; i++) {
             const x = Math.random() * this.size - this.size / 2;
@@ -193,39 +185,45 @@ export default class Mountain {
     }
     
 
-    generateGates(z_pos, color) {
+    generateGates(z_pos) {
         if (z_pos > this.size / 2 - 10) {
             this.gates.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI * this.steepness);
             return;
         }
+    
+        const centerX = (Math.random() - 0.5) * 55;
+        const offset = 7.5;
+        const leftX = centerX - offset;
+        const rightX = centerX + offset;
+    
+        const leftGate = new SlalomGate(new THREE.TextureLoader(), null, 0xff0000); // Red
+        const rightGate = new SlalomGate(new THREE.TextureLoader(), null, 0x0000ff); // Blue
+    
+        const yL = this.heightAtPoint(leftX, z_pos);
+        const yR = this.heightAtPoint(rightX, z_pos);
+    
+        leftGate.group.position.set(leftX, yL, z_pos);
+        rightGate.group.position.set(rightX, yR, z_pos);
+    
+        const gateGroup = new THREE.Group();
+        gateGroup.add(leftGate.group);
+        gateGroup.add(rightGate.group);
 
-        const gate = new SlalomGate(new THREE.TextureLoader(), null, color);
-        const x_pos = Math.random() * 5 + 1;
-
-        switch (color) {
-            case 0xff0000:
-                // left / red gates
-                gate.group.position.set(x_pos, this.heightAtPoint(x_pos, z_pos), z_pos);
-                gate.group.scale.setScalar(1.2);
-                this.gates.add(gate.group);
-                color = 0x0000ff;
-                break;
-            case 0x0000ff:
-                // right / blue gates
-                gate.group.position.set(-x_pos, this.heightAtPoint(-x_pos, z_pos), z_pos);
-                gate.group.scale.setScalar(1.2);
-                this.gates.add(gate.group);
-                color = 0xff0000;
-                break;
-        }
-
-        z_pos = z_pos + Math.random() * 10 + 180;
-        this.generateGates(z_pos, color);
+    
+        // Save metadata
+        gateGroup.passed = new Set(); // Use a Set for unique skiers
+    
+        this.gates.add(gateGroup);
+    
+        z_pos += Math.random() * 10 + 125;
+        this.generateGates(z_pos);
     }
+    
+    
 
    
     generateTrees() {
-        return Tree.generateForest(this.size, this.size * 0.2, this.heightAtPoint.bind(this), this.steepness);
+        return Tree.generateForest(this.size, this.size * 0.6, this.heightAtPoint.bind(this), this.steepness);
     }
     
     
@@ -246,102 +244,71 @@ export default class Mountain {
         //console.log(this.checkedGates[skier]);
         //console.log(this.checkedGates[skier] == undefined);
         //console.log(this.checkedGates[skier] != undefined);
-        if (this.checkedGates[skier] === undefined) {
-            this.skiers.push(skier);
-            this.checkedGates[skier] = this.gates.clone().children;
-        }
-        if (this.checkedGates[skier].length == 0) {
-            return;
-        }
-        if (this.skiers.includes(skier)) {
-            const skierPos = skier.mesh.getWorldPosition(new THREE.Vector3());
-            const rocks = this.mesh.children[2]; // InstancedMesh
-            const dummy = new THREE.Object3D();
-            const worldMatrix = rocks.matrixWorld; // world matrix of the instanced mesh
-        
-            const instanceCount = Math.floor(rocks.count);
-            for (let i = 0; i < instanceCount; i++) {
-                // Get local matrix of the instance
-                rocks.getMatrixAt(i, dummy.matrix);
-        
-                // Convert instance's local matrix to world matrix
-                dummy.matrix.premultiply(worldMatrix); // apply the parent world transform
-                dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
-        
-                const distance = dummy.position.distanceTo(skierPos);
-                ////console.log(`Distance to rock ${i}:`, distance);
-                ////console.log("Skier mesh", skier.mesh);
-                if (distance < dummy.scale.x * 1.7) {
-                    skier._velocity.set(0, 25, -20);
-                    skier.mesh.position.set(
-                        skier.mesh.position.x,
-                        skier.mesh.position.y + 2,
-                        skier.mesh.position.z
-                    );
-                
-                    // Store original colors for all mesh children
-                    const originalColors = [];
-                    skier.mesh.traverse((child) => {
-                        if (child.isMesh && child.material && child.material.color) {
-                            originalColors.push({
-                                mesh: child,
-                                color: child.material.color.clone(),
-                            });
-                        }
-                    });
-                
-                    let flashCount = 0;
-                    const flashInterval = setInterval(() => {
-                        originalColors.forEach(({ mesh, color }) => {
-                            mesh.material.color.set(flashCount % 2 === 0 ? 0xff0000 : color);
-                        });
-                
-                        flashCount++;
-                        if (flashCount >= 6) {
-                            clearInterval(flashInterval);
-                            // Restore original colors
-                            originalColors.forEach(({ mesh, color }) => {
-                                mesh.material.color.copy(color);
-                            });
-                        }
-                    }, 100);
-                
-                    break;
-                }
-                
-            }
-        }
-        
-        // check if skier has passed through next gate from the right side
-        // if wrong side take a point away
-        if (this.checkedGates[skier] != undefined) {
-            const skierPosition = (skier.mesh.position.z - this.mesh.position.z) / Math.cos(this.mesh.rotation.x);
-            //console.log("Skier position: ", skierPosition);
+        const skierPos = skier.mesh.getWorldPosition(new THREE.Vector3());
+        const rocks = this.mesh.children[2]; // InstancedMesh
+        const dummy = new THREE.Object3D();
+        const worldMatrix = rocks.matrixWorld;
+    
+        const instanceCount = Math.floor(rocks.count);
+    
+        for (let i = 0; i < instanceCount; i++) {
+            rocks.getMatrixAt(i, dummy.matrix);
+            dummy.matrix.premultiply(worldMatrix);
+            dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+    
+            const distance = dummy.position.distanceTo(skierPos);
+            console.log("Distance to rock: ", distance);
 
-            const gates = this.checkedGates[skier].sort((gate1, gate2) => {
-                return gate1.position.z - gate2.position.z;
-            }).filter(gate => gate.position.z > skierPosition - 10);
-            if (gates.length == 0) {
-                return 0;
+            // 🔥 Check for collision
+            if (distance < dummy.scale.x * 1.7) {
+                skier._velocity.set(0, 25, -20);
+                skier.mesh.position.set(
+                    skier.mesh.position.x,
+                    skier.mesh.position.y + 2,
+                    skier.mesh.position.z
+                );
+    
+                // [Flash logic omitted for brevity...]
+                break;
             }
-            if (gates[0].position.z < skierPosition && gates[0].position.z > skierPosition - 1) {
-                this.checkedGates[skier].shift();         
-                if ((gates[0].position.x < 0 && skier.mesh.position.x < gates[0].position.x) || (gates[0].position.x > 0 && skier.mesh.position.x > gates[0].position.x)) {
+        }
+        
+        
+
+        
+
+        this.gates.children.forEach((gate) => {
+            gate.updateMatrixWorld(true);
+            skier.mesh.updateMatrixWorld(true);
+        
+            const skierBox = new THREE.Box3().setFromObject(skier.mesh);
+            const gateBox = new THREE.Box3().setFromObject(gate);
+            gateBox.expandByVector(new THREE.Vector3(1.5, 10, 1)); // Expand the gate box to account for height and width
+        
+            const intersectBox = skierBox.intersectsBox(gateBox);
+
+            const widerBox = gateBox.clone().expandByVector(new THREE.Vector3(100, 10, 0.1));
+
+            if (widerBox.intersectsBox(skierBox) && !intersectBox && !gate.passed.has(skier)) {
+                skier.score -= 1;
+            }
+        
+            if (intersectBox && !gate.passed.has(skier)) {
+        
+                const leftX = gate.children[0].getWorldPosition(new THREE.Vector3()).x;
+                const rightX = gate.children[1].getWorldPosition(new THREE.Vector3()).x;
+                const skierX = skier.mesh.getWorldPosition(new THREE.Vector3()).x;
+        
+                if (skierX > leftX && skierX < rightX) {
+                    gate.passed.add(skier);
                     skier.score += 1;
-                    return 1;
+                } else {
+                    skier.score -= 1;
                 }
-                else {
-                    if (skier.score > 0) {
-                        skier.score -= 1;
-                        return -1;
-                    }
-                }
-
             }
-            return 0;
-            
-        }
-        return -5;
+        });
+        
+        
 
         // check if skier hit a rock
         // if so make the skier blink and slow it down

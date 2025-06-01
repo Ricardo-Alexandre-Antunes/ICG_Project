@@ -108,7 +108,7 @@ class InputController {
 export default class FirstPersonCamera {
     constructor(camera, target) {
       this._camera = camera;
-      this._camera.position.set(0, -3, 0)
+      this._camera.position.set(0, 0, 0)
       this._camera.rotation.set(0, Math.PI, 0);
       this.input_ = new InputController();
       this.rotation_ = new THREE.Quaternion();

@@ -18,7 +18,7 @@ const CHECKPOINTS = 3;
 const ENDURANCE = 4;
 
 
-const TIME_LIMIT = 30 * 1000; // 30 seconds in milliseconds
+const TIME_LIMIT = 300 * 1000; // 30 seconds in milliseconds
 
 export default class GameWorld {
     

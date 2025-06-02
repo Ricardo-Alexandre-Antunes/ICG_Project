@@ -85,12 +85,12 @@ export default class Character_Ski {
 
     switchCamera() {
         if (this.thirdPerson) {
-            console.log("switch to first person");
+            //console.log("switch to first person");
             this.curCamera = this.firstPersonCamera;
             this.thirdPerson = false;
         }
         else {
-            console.log("switch to third person");
+            //console.log("switch to third person");
             this.curCamera = this.thirdPersonCamera;
             const head = this.mesh.children[0].children[1];
             head.rotateOnAxis(new THREE.Vector3(0, 0, 0), Math.PI);
@@ -239,15 +239,15 @@ export default class Character_Ski {
     }
 
     getAverageSpeed(timeInSeconds) {
-        console.log("getAverageSpeed", timeInSeconds);
+        //console.log("getAverageSpeed", timeInSeconds);
         const currentSpeed = this.getCurrentSpeed();
 
         // Weighted average formula:
         // newAverage = (oldAverage * oldTime + currentSpeed * deltaTime) / (oldTime + deltaTime)
-        console.log("old average speed", this._averageSpeed);
-        console.log("numerator", this._averageSpeed * this._totalTime);
+        //console.log("old average speed", this._averageSpeed);
+        //console.log("numerator", this._averageSpeed * this._totalTime);
         this._averageSpeed = (this._averageSpeed * this._totalTime + currentSpeed * timeInSeconds) / (this._totalTime + timeInSeconds);
-        console.log("new average speed", this._averageSpeed);
+        //console.log("new average speed", this._averageSpeed);
         this._totalTime += timeInSeconds;
     }
 
@@ -417,18 +417,37 @@ export default class Character_Ski {
             const speed = velocity.length();
             if (speed > 0.01) {
                 const currentDir = velocity.clone().normalize();
-
-                // Get forward direction from quaternion
+            
+                // Get forward direction from skier orientation
                 const facingDir = new THREE.Vector3(0, 0, 1).applyQuaternion(controlObject.quaternion).normalize();
-
-                // Make direction always "forward-facing" (flip if skier is facing backward)
+            
+                // Make direction always "forward-facing"
                 if (facingDir.z < 0) {
                     facingDir.negate();
                 }
-
-                const turnBlendFactor = 0.01; // tweak for more or less drift
-                const blendedDir = currentDir.lerp(facingDir, turnBlendFactor).normalize();
-                this._velocity.copy(blendedDir.multiplyScalar(speed));
+            
+                // Step 1: Apply side acceleration input (e.g., from left/right keys)
+                // Assuming `inputAxis` is -1 (left), 0 (none), or 1 (right)
+                const inputAxis = this._inputAxis || 0; // you should set this externally
+                const sideDir = new THREE.Vector3(1, 0, 0).applyQuaternion(controlObject.quaternion).normalize();
+                const sideAcceleration = 0.02; // tune this
+                const sideAccelVec = sideDir.multiplyScalar(inputAxis * sideAcceleration);
+                this._velocity.add(sideAccelVec);
+            
+                // Step 2: Apply friction based on misalignment with skis
+                const updatedDir = this._velocity.clone().normalize();
+                const alignment = facingDir.dot(updatedDir); // 1 = perfect alignment, 0 = perpendicular
+                const frictionFactor = THREE.MathUtils.clamp(alignment, 0, 1); // lower alignment = more friction
+            
+                const frictionCoefficient = 0.985; // base friction multiplier
+                const misalignmentLoss = 1 - (1 - frictionCoefficient) * (1 - frictionFactor);
+                this._velocity.multiplyScalar(misalignmentLoss);
+            
+                // Step 3: Apply turn blend for smoother movement (optional drift feel)
+                const turnBlendFactor = 0.01;
+                const blendedDir = updatedDir.lerp(facingDir, turnBlendFactor).normalize();
+                const finalSpeed = this._velocity.length();
+                this._velocity.copy(blendedDir.multiplyScalar(finalSpeed));
             }
 
     
@@ -478,6 +497,18 @@ export default class Character_Ski {
         }
         
     
+        const MAX_TURN_ANGLE = Math.PI / 2; // 90 degrees
+
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.mesh.quaternion).normalize();
+        const velocityDir = this._velocity.clone().normalize();
+        
+        let angleToVelocity = forward.angleTo(velocityDir);
+        
+        // Use cross product to determine turn direction
+        const cross = new THREE.Vector3().crossVectors(forward, velocityDir);
+        const sign = Math.sign(cross.y); // +1: velocity is to the left of forward, -1: to the right
+        angleToVelocity *= sign; // signed angle between -PI and PI
+        
         if (this.keys.left) {
             if (this.turningLeft) {
                 if (this.turningLeftTime < 1.0) {
@@ -487,17 +518,15 @@ export default class Character_Ski {
             this.turningRight = false;
             this.turningLeft = true;
             _A.set(0, 1, 0);
-            //console.log("turn strength test", 100/this._velocity.lengthSq());
-            //console.log("turn strength test1", 0.1/this._velocity.lengthSq());
-            const turnStrength = Math.min(0.1, 100/this._velocity.lengthSq() + 0.05);
+            const turnStrength = Math.min(0.05, 100 / this._velocity.lengthSq() + 0.02);
             _Q.setFromAxisAngle(_A, turnStrength);
             _R.multiply(_Q);
-    
+        
         } else {
             this.turningLeft = false;
             this.turningLeftTime = Math.max(this.turningLeftTime - 0.02, 0);
         }
-    
+        
         if (this.keys.right) {
             if (this.turningRight) {
                 if (this.turningRightTime < 1.0) {
@@ -505,16 +534,19 @@ export default class Character_Ski {
                 }
             }
             this.turningLeft = false;
+        
+            // Only allow right turn if not already turned too far right
             this.turningRight = true;
             _A.set(0, 1, 0);
-            const turnStrength = Math.min(0.1, 100/this._velocity.lengthSq() + 0.05);
+            const turnStrength = Math.min(0.05, 100 / this._velocity.lengthSq() + 0.02);
             _Q.setFromAxisAngle(_A, -turnStrength);
             _R.multiply(_Q);
-    
+        
         } else {
             this.turningRight = false;
             this.turningRightTime = Math.max(this.turningRightTime - 0.02, 0);
         }
+        
     }
     
     
@@ -566,14 +598,12 @@ export default class Character_Ski {
         const head = skierMesh.children[1];
         head.position.y = 6;
         head.position.z = 4;
-    
-        // === ARMS (Hands + Poles) ===
         const rightPole = this.mesh.children[2];
-        const leftPole = this.mesh.children[3];
-    
+        const leftPole = this.mesh.children[3];           
+        // === ARMS (Hands + Poles) ===
         const targetPoleRotation = new THREE.Euler(Math.PI / 2, 0, 0);
         const targetPoleQuat = new THREE.Quaternion().setFromEuler(targetPoleRotation);
-    
+
         rightPole.quaternion.slerp(targetPoleQuat, 0.1);
         leftPole.quaternion.slerp(targetPoleQuat, 0.1);
 
@@ -581,6 +611,7 @@ export default class Character_Ski {
         leftPole.position.y = -3;
         rightPole.position.z = -3;
         leftPole.position.z = -3;
+
     }
     
     

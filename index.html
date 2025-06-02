@@ -97,7 +97,7 @@
       </div>
     </div>
 
-    <label><input type="checkbox" id="musicToggle" checked /> 🎵 Background Music</label>
+    <label><input type="range" max="100" min="0" id="musicRange">Music Volume</label>
 
     <button id="startButton">Start Skiing!</button>
     <button id="optionsButton">Options</button>
@@ -152,19 +152,9 @@
       turningSpeed: 5
     };
 
-    const tryPlayMusic = () => {
-      if (!musicStarted && document.getElementById('musicToggle').checked) {
-        bgMusic.play().catch(() => {});
-        musicStarted = true;
-      }
-    };
 
-    document.getElementById('musicToggle').addEventListener('change', (e) => {
-      if (e.target.checked) {
-        bgMusic.play().catch(() => {});
-      } else {
-        bgMusic.pause();
-      }
+    document.getElementById('musicRange').addEventListener('input', (e) => {
+      bgMusic.volume = e.target.value / 100;
     });
 
     document.getElementById('playerCount').addEventListener('change', () => {
@@ -200,7 +190,8 @@
         return;
       }
 
-      const mode = document.getElementById('gameMode').value;
+      const modes = {'slalom': 1, 'race': 2, 'checkpoint': 3, 'endurance': 4};
+      const mode = modes[document.getElementById('gameMode').value];
       const playerCount = parseInt(document.getElementById('playerCount').value, 10);
       console.log(playerCount);
       const controls = [[
@@ -230,8 +221,7 @@
       document.getElementById('background').style.display = 'none';
       document.getElementById('snowCanvas').style.display = 'none';
       console.log('Starting game with controls:', controls);
-      tryPlayMusic();
-      new GameWorld({numberPlayers: playerCount, controls: controls, mode: mode});
+      new GameWorld({numberPlayers: playerCount, controls: controls, mode: mode, bgMusic: bgMusic, gameSettings: gameSettings});
     });
 
     // Snow & Keybinding logic...

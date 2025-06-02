@@ -7,15 +7,22 @@ import Tree from './Tree.js';
 import SpotLightModel from './Spotlight.js';
 import { snowTexture } from './Textures.js';
 
+const SLALOM = 1;
+const RACE = 2;
+const CHECKPOINTS = 3;
+const ENDURANCE = 4;
+
+
 export default class Mountain {
-    constructor({ size = 500, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 35 * Math.random(), previousMountain = null, numberPlayers = 1 } = {}) {
+    constructor({ size = 500, resolution = 50, heightScale = 10, color = 0xffffff, steepness = 0.5, seed = Math.random(), rocks = 35 * Math.random(), previousMountain = null, mode = SLALOM } = {}) {
+        console.log("Mode: ", mode);
         this.size = size;
         this.resolution = resolution;
         this.heightScale = heightScale;
         this.color = color;
         this.steepness = steepness;
         this.seed = seed;
-        this.rocks = rocks * ( 1 + (numberPlayers / 10) ) ;
+        this.rocks = rocks;
         this.skiers = [];
         this.previousMountain = previousMountain;  // Store reference to the previous mountain
 
@@ -29,7 +36,8 @@ export default class Mountain {
         this.gates = new THREE.Group();
         this.mesh.add(this.gates);
         //console.log("prev mountain: ", previousMountain);
-        if (numberPlayers == 1) {
+        if (mode == SLALOM) {
+            console.log("Generating slalom gates...");
             this.generateGates(-this.size / 2 + 20);
             this.checkedGates = this.gates.clone().children;
         }
@@ -257,7 +265,7 @@ export default class Mountain {
             dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
     
             const distance = dummy.position.distanceTo(skierPos);
-            console.log("Distance to rock: ", distance);
+            //console.log("Distance to rock: ", distance);
 
             // 🔥 Check for collision
             if (distance < dummy.scale.x * 1.7) {

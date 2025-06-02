@@ -23,9 +23,12 @@ const TIME_LIMIT = 300 * 1000; // 30 seconds in milliseconds
 export default class GameWorld {
     
 
-    constructor({numberPlayers = 1, controls = [["w", "a", "s", "d", "space", "c"]]} = {}) {
-        const audio = document.getElementById('bgMusic'); // or wherever your audio element is
-        audio.play();
+    constructor({numberPlayers = 1, controls = [["w", "a", "s", "d", "space", "c"]], mode = SLALOM, bgMusic = null} = {}) {
+        this.mode = mode;
+        if (bgMusic != null) {
+            console.log("bgMusic", bgMusic);
+            bgMusic.play();
+        }
         this.htmlElement = document.querySelector("#MainScene");
         this.previousRAF = null;
         this.start = Date.now();
@@ -40,6 +43,10 @@ export default class GameWorld {
         this._frameCheckInterval = 1000; // check every 1s
         this._lastFrameCheck = performance.now();
         this.losingTick = Date.now();
+
+        if (numberPlayers > 1) {
+            this.mode = RACE;
+        }
     }
 
     _Initialize() {
@@ -325,12 +332,13 @@ export default class GameWorld {
 
     _addObjects() {
         //mountain
-        const mountain = new Mountain({numberPlayers: this.numberPlayers});
+        console.log("mode", this.mode);
+        const mountain = new Mountain({mode: this.mode});
         this.sceneGraph.add(mountain.mesh);
         this.floor.push(mountain);
 
         //2nd mountain
-        const mountain2 = new Mountain({numberPlayers: this.numberPlayers, previousMountain: mountain});
+        const mountain2 = new Mountain({mode: this.mode, previousMountain: mountain});
         const angle = mountain.mesh.rotation.x;
         mountain2.mesh.position.z = mountain.mesh.position.z - mountain.size * Math.sin(angle);
         mountain2.mesh.position.y = mountain.mesh.position.y - mountain.size * Math.cos(angle);
@@ -486,7 +494,7 @@ export default class GameWorld {
             console.log("Restarting game...");
             // Remove overlay and blur
             this.clearObjectChildren();
-            const newSceneInstance = new GameWorld(this.numberPlayers, this.controls);
+            const newSceneInstance = new GameWorld({numberPlayers: this.numberPlayers, controls: this.controls});
             Object.assign(this, newSceneInstance);
         };
     
@@ -507,12 +515,15 @@ export default class GameWorld {
     
     render() {
         const now = Date.now();
-    
+        this.checkGameOver();
         // Update score if enough time has passed
         if (now - this.skier.lastScoreUpdate > 200) {
             this.skier.lastScoreUpdate = now;
-    
+            
             for (const skier of this.skiers) {
+                if (this.numberPlayers > 1) {
+                    skier.score = Math.floor(skier.mesh.position.z);
+                } 
                 const skierZ = skier.mesh.position.z;
     
                 for (const floor of this.floor) {
@@ -530,7 +541,7 @@ export default class GameWorld {
                         break;
                     }
                 }
-                this.checkGameOver();
+                
             }
         }
     
@@ -598,7 +609,7 @@ export default class GameWorld {
                 distanceContainer.style.alignItems = "center";
                 distanceContainer.style.pointerEvents = "none";
                 distanceContainer.style.zIndex = "1000";
-                document.body.appendChild(distanceContainer);
+                this.htmlElement.appendChild(distanceContainer);
             }
 
             // Create or get player icons
@@ -799,13 +810,14 @@ export default class GameWorld {
         const furthestSkier = this.skiers.reduce((prev, curr) => (prev.mesh.position.z > curr.mesh.position.z) ? prev : curr);
         if (furthestSkier.mesh.position.z > detectPoint.mesh.position.z + detectPoint.size / 4) {
             for (let i = 0; i < 2; i++) {
+                console.log(this.mode);
                 //console.log("rocks", lastFloor.rocks);
                 const newFloor = new Mountain({
                     size: lastFloor.size,
                     steepness: lastFloor.steepness,
                     rocks: Math.max(0, lastFloor.rocks + 15 * (Math.random() - 0.5)),
                     previousMountain: lastFloor,  // 👈 Pass the previous mountain
-                    numberPlayers: this.numberPlayers
+                    mode: this.mode,
                 });
                   
                 newFloor.mesh.position.z = lastFloor.mesh.position.z - lastFloor.size * Math.sin(angle);

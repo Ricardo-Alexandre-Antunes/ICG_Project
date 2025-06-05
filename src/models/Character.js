@@ -386,8 +386,9 @@ export default class Character_Ski {
     
         if (this.onGround) {
             if (this.keys.space) {
-                this.timeCharging += timeInSeconds * 4;
+                this.timeCharging = Math.min(this.timeCharging + timeInSeconds * 4, 20);
                 this.rotationPower = Math.min(1, this.timeCharging * 10);
+                this._acceleration.add(new THREE.Vector3(0, 0, Math.min(-(20 - this.timeCharging), -this._velocity.z) * 0.3));
             }
             if (!this.keys.space && this.timeCharging > 0) {
                 //console.log("JUMP!!!!");
@@ -728,7 +729,7 @@ export default class Character_Ski {
         jacketTexture.wrapS = THREE.RepeatWrapping;
         jacketTexture.wrapT = THREE.RepeatWrapping;
         jacketTexture.repeat.set(5, 5);
-        var bodyGeom = new THREE.CylinderGeometry(3.5, 3, 10, 4, 1);
+        var bodyGeom = new THREE.CylinderGeometry(3.5, 3, 10, 7, 1);
         var bodyMat = new THREE.MeshPhongMaterial({ map: jacketTexture, flatShading: true });
         var body = new THREE.Mesh(bodyGeom, bodyMat);
         body.name = "body";
@@ -854,7 +855,7 @@ export default class Character_Ski {
         var light = new THREE.SpotLight(0xffffff, 10);
         light.decay = 0.8;
         light.customDistanceMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        light.distance = 600;
+        light.distance = 50;
         light.target = new THREE.Object3D();
         light.target.position.set(0, 20, -5);
         light.position.set(0, 3, 0);

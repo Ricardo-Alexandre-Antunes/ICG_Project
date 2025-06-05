@@ -23,8 +23,11 @@ const TIME_LIMIT = 300 * 1000; // 30 seconds in milliseconds
 export default class GameWorld {
     
 
-    constructor({numberPlayers = 1, controls = [["w", "a", "s", "d", "space", "c"]], mode = SLALOM, bgMusic = null} = {}) {
+    constructor({numberPlayers = 1, controls = [["w", "a", "s", "d", "space", "c"]], mode = SLALOM, bgMusic = null, difficulty = 1, dayspeed = 1, fogDensity = 1, turningSpeed = 1} = {}) {
         this.mode = mode;
+        if (numberPlayers > 1) {
+            this.mode = RACE;
+        }
         if (bgMusic != null) {
             console.log("bgMusic", bgMusic);
             bgMusic.play();
@@ -44,9 +47,6 @@ export default class GameWorld {
         this._lastFrameCheck = performance.now();
         this.losingTick = Date.now();
 
-        if (numberPlayers > 1) {
-            this.mode = RACE;
-        }
     }
 
     _Initialize() {

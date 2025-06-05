@@ -4,6 +4,10 @@ export default class SlalomGate {
     constructor(textureLoader, flagTexturePath = null, color = 0xff0000) {
         this.group = new THREE.Group();
 
+        this.group.raycast = (raycaster, intersects) => {
+            return false;
+        };
+
         const leftPole = new THREE.Group();
         leftPole.position.set(-0.6, 1, 0); // Adjust height so the bottom touches the ground
 
